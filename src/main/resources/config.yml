@@ -1,0 +1,103 @@
+settings:
+  teleport-delay: 5
+  default-home-limit: 1
+
+economy:
+  enabled: true
+  cost:
+    set-home: 1000.0
+    teleport: 50.0
+    make-public: 5000.0
+
+database:
+  # h2, mariadb, or mysql
+  type: h2
+  host: localhost
+  port: 3306
+  name: minecraft
+  user: root
+  password: ""
+
+sounds:
+  teleport-count: BLOCK_NOTE_BLOCK_PLING
+  teleport-success: ENTITY_ENDERMAN_TELEPORT
+  teleport-fail: ENTITY_VILLAGER_NO
+  gui-click: UI_BUTTON_CLICK
+  delete-success: ENTITY_GENERIC_EXPLODE
+  # Set to NONE to disable specific sound
+
+gui:
+  title: "ホーム一覧"
+  delete-mode-title: "&c削除モード (クリックで削除)"
+  create-button:
+    name: "&aホームを作成する"
+    lore:
+      - "&7クリックして名前を入力"
+  delete-button:
+    name-off: "&a削除モード: OFF"
+    name-on: "&c削除モード: ON"
+    lore-off:
+      - "&7クリックしてONにする"
+    lore-on:
+      - "&7クリックしてOFFにする"
+      - "&cホームをクリックすると削除確認画面へ移動します！"
+  home-icon:
+    name: "&6{name}"
+    default-material: RED_BED
+    # ワールドごとのアイコン設定 (ワールド名: マテリアル)
+    world-icons:
+      world_nether: CRIMSON_FUNGUS
+      world_the_end: END_STONE
+      # world: GRASS_BLOCK
+    lore:
+      - "&7ワールド: {world}"
+      - "&7X: {x} Y: {y} Z: {z}"
+    lore-teleport:
+      - "&eクリックしてテレポート"
+    lore-delete:
+      - "&cクリックして削除"
+  confirm-delete:
+    title: "&c本当に削除しますか？"
+    yes-button:
+      name: "&aはい、削除します"
+      lore:
+        - "&7この操作は取り消せません"
+    no-button:
+      name: "&cいいえ、キャンセルします"
+      lore:
+        - "&7ホーム一覧に戻ります"
+
+messages:
+  teleport-start: "&e{seconds}秒後にテレポートします。動かないでください！"
+  teleport-success: "&aテレポートしました！"
+  teleport-cancelled: "&c移動したためテレポートがキャンセルされました！"
+  teleport-already-in-progress: "&cすでにテレポート準備中です！"
+  home-created: "&aホーム '{name}' を作成しました！"
+  home-deleted: "&aホーム '{name}' を削除しました！"
+  home-set: "&aホーム '{name}' を設定しました！"
+  home-exists: "&cその名前のホームは既に存在します！"
+  home-not-found: "&cホーム '{name}' は存在しません。"
+  max-homes-reached: "&cホームの最大数({max})に達しているため、これ以上作成できません。"
+  enter-name: "&aホームの名前をチャットに入力してください。"
+  cancel-info: "&7キャンセルするには 'cancel' と入力してください。"
+  creation-cancelled: "&eホーム作成をキャンセルしました。"
+  usage-sethome: "&c使用法: /sethome <名前>"
+  usage-delhome: "&c使用法: /delhome <名前>"
+  usage-home: "&c使用法: /home <名前>"
+  use-gui-info: "&eGUIを開くには /homes を使用してください。"
+  no-homes: "&eホームが設定されていません。"
+  only-player: "&cこのコマンドはプレイヤーのみ使用可能です。"
+  reload-success: "&a設定を再読み込みしました！"
+  no-permission: "&c権限がありません。"
+  
+  # Economy
+  insufficient-funds: "&cお金が足りません！ 必要: {cost}"
+  payment-success: "&a{cost}支払いました。"
+  
+  # Invite/Public
+  invite-success: "&a{player} をホーム '{home}' に招待しました！"
+  invite-received: "&a{player} からホーム '{home}' に招待されました！"
+  public-toggled-on: "&aホーム '{home}' を公開設定にしました！"
+  public-toggled-off: "&eホーム '{home}' を非公開にしました。"
+  player-not-found: "&cプレイヤーが見つかりません。"
+  admin-view: "&c管理モードで {player} のホームを表示しています。"

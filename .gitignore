@@ -1,0 +1,10 @@
+target/
+*.class
+*.log
+.idea/
+*.iml
+.DS_Store
+*.jar
+!src/main/resources/*.jar
+server/
+dependency-reduced-pom.xml

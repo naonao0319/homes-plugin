@@ -1,0 +1,31 @@
+name: homes
+api: "1.21"
+version: 1.5.1
+main: com.example.homes.HomesPlugin
+api-version: 1.21
+author: naonao
+website: https://github.com/naonao0319/homes-plugin
+commands:
+  home:
+    description: ホームにテレポートする
+    usage: /home <名前>
+  homes:
+    description: ホーム画面(GUI)を開く
+    usage: /homes [list]
+  sethome:
+    description: ホームを設定する
+    usage: /sethome <名前>
+  delhome:
+    description: ホームを削除する
+    usage: /delhome <名前>
+permissions:
+  homes.use:
+    description: 基本的なホーム機能の使用権限
+    default: true
+  homes.admin:
+    description: 他人のホームを閲覧・管理する権限
+    default: op
+  homes.limit.*:
+    description: ホーム作成数の制限
+    default: op
+
