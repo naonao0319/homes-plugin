@@ -60,13 +60,12 @@ public class HomeTabCompleter implements TabCompleter {
             // TPA Commands
             if (cmdName.equals("tpa") || cmdName.equals("tpahere") || cmdName.equals("tpcancel") || cmdName.equals("tpaignore")) {
                 for (Player p : player.getServer().getOnlinePlayers()) {
-                    completions.add(p.getName());
+                    // Exclude self from TPA completion
+                    if (!p.getUniqueId().equals(player.getUniqueId())) {
+                        completions.add(p.getName());
+                    }
                 }
-                for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
-                     if (op.getName() != null && !completions.contains(op.getName())) {
-                         completions.add(op.getName());
-                     }
-                }
+                // Do NOT include offline players for TPA
             }
             
             // /sethome <name> - no suggestions usually, maybe "home"

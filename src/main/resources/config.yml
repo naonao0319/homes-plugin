@@ -1,6 +1,15 @@
 settings:
-  teleport-delay: 5
   default-home-limit: 1
+  teleport-delay: 3
+  # TPA Settings
+  tpa:
+    enabled: true
+    back-on-teleport: true # Save location to /back when using TPA
+    cooldown: 60 # TPA cooldown in seconds
+  # Back Settings
+  back:
+    enabled: true
+    save-death-location: true # Allow /back to return to death location
 
 economy:
   enabled: true
@@ -68,36 +77,46 @@ gui:
         - "&7ホーム一覧に戻ります"
 
 messages:
-  teleport-start: "&e{seconds}秒後にテレポートします。動かないでください！"
-  teleport-success: "&aテレポートしました！"
-  teleport-cancelled: "&c移動したためテレポートがキャンセルされました！"
-  teleport-already-in-progress: "&cすでにテレポート準備中です！"
-  home-created: "&aホーム '{name}' を作成しました！"
-  home-deleted: "&aホーム '{name}' を削除しました！"
-  home-set: "&aホーム '{name}' を設定しました！"
-  home-exists: "&cその名前のホームは既に存在します！"
-  home-not-found: "&cホーム '{name}' は存在しません。"
-  max-homes-reached: "&cホームの最大数({max})に達しているため、これ以上作成できません。"
-  enter-name: "&aホームの名前をチャットに入力してください。"
-  cancel-info: "&7キャンセルするには 'cancel' と入力してください。"
-  creation-cancelled: "&eホーム作成をキャンセルしました。"
-  usage-sethome: "&c使用法: /sethome <名前>"
-  usage-delhome: "&c使用法: /delhome <名前>"
-  usage-home: "&c使用法: /home <名前>"
-  use-gui-info: "&eGUIを開くには /homes を使用してください。"
-  no-homes: "&eホームが設定されていません。"
-  only-player: "&cこのコマンドはプレイヤーのみ使用可能です。"
-  reload-success: "&a設定を再読み込みしました！"
+  prefix: "&6[Homes] &r"
   no-permission: "&c権限がありません。"
-  
-  # Economy
-  insufficient-funds: "&cお金が足りません！ 必要: {cost}"
-  payment-success: "&a{cost}支払いました。"
-  
-  # Invite/Public
-  invite-success: "&a{player} をホーム '{home}' に招待しました！"
-  invite-received: "&a{player} からホーム '{home}' に招待されました！"
-  public-toggled-on: "&aホーム '{home}' を公開設定にしました！"
-  public-toggled-off: "&eホーム '{home}' を非公開にしました。"
+  home-set: "&aホーム &e{name} &aを設定しました。"
+  home-deleted: "&cホーム &e{name} &cを削除しました。"
+  home-not-found: "&cそのホームは見つかりません。"
+  teleport-success: "&aテレポートしました！"
+  teleport-start: "&e{seconds}秒後にテレポートします..."
+  teleport-cancelled: "&c移動したためテレポートをキャンセルしました。"
+  max-homes-reached: "&cこれ以上ホームを作成できません (最大: {max})"
+  invalid-name: "&cホーム名に使用できない文字が含まれています。"
   player-not-found: "&cプレイヤーが見つかりません。"
-  admin-view: "&c管理モードで {player} のホームを表示しています。"
+  admin-view: "&c管理者権限で {player} のホームを表示しています。"
+  insufficient-funds: "&cお金が足りません！ (必要: {cost})"
+  payment-success: "&a{cost} を支払いました。"
+  no-homes: "&cホームが設定されていません。"
+  # TPA Messages
+  tpa-sent: "&a{player} にテレポートリクエストを送信しました。"
+  tpa-received: "&a{player} からテレポートリクエストが届きました。"
+  tpahere-received: "&a{player} からカモン(呼び出し)リクエストが届きました。"
+  tpa-info: "&e/tpaccept &fで承認、&e/tpdeny &fで拒否します。"
+  tpa-expired-sender: "&e{player} へのリクエストが期限切れになりました。"
+  tpa-expired-receiver: "&e{player} からのリクエストが期限切れになりました。"
+  tpa-no-request: "&c保留中のリクエストはありません。"
+  tpa-request-denied: "&eリクエストを拒否しました。"
+  tpa-denied-sender: "&c{player} にリクエストを拒否されました。"
+  tpa-cancelled: "&aリクエストをキャンセルしました。"
+  tpa-no-target-request: "&cそのプレイヤーへのリクエストはありません。"
+  tpa-self: "&c自分自身にリクエストを送ることはできません。"
+  tpa-disabled: "&c{player} はテレポートリクエストを受け付けていません。"
+  tpa-ignored: "&c{player} はあなたのリクエストを無視しています。"
+  tpa-toggle-on: "&aテレポートリクエストを受け付けるようにしました。"
+  tpa-toggle-off: "&cテレポートリクエストを拒否するようにしました。"
+  tpa-ignore-add: "&c{player} を無視リストに追加しました。"
+  tpa-ignore-remove: "&a{player} の無視を解除しました。"
+  tpa-accepted: "&aリクエストが承認されました。"
+  tpa-accepted-target: "&a{player} のリクエストを承認しました。"
+  tpa-feature-disabled: "&cこの機能は現在無効化されています。"
+  tpa-cooldown: "&cTPAを使用するにはあと {seconds} 秒待ってください。"
+  # Back Messages
+  back-success: "&a死亡地点に戻りました。"
+  back-no-location: "&c戻る場所がありません。"
+  back-feature-disabled: "&c/back コマンドは無効化されています。"
+  reload-success: "&a設定をリロードしました。"

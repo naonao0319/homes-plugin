@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.example.homes.gui.HomeGUI;
 import com.example.homes.manager.DataListener;
+import com.example.homes.manager.DeathListener;
 import com.example.homes.manager.EconomyManager;
 import com.example.homes.manager.HomeManager;
 import com.example.homes.manager.HomeTabCompleter;
@@ -20,7 +21,6 @@ import com.example.homes.manager.InputListener;
 import com.example.homes.manager.SoundManager;
 import com.example.homes.manager.TeleportManager;
 import com.example.homes.manager.TpaManager;
-import com.example.homes.manager.UpdateChecker;
 
 public class HomesPlugin extends JavaPlugin {
 
@@ -30,10 +30,15 @@ public class HomesPlugin extends JavaPlugin {
     private InputListener inputListener;
     private SoundManager soundManager;
     private EconomyManager economyManager;
-    private UpdateChecker updateChecker;
     private TpaManager tpaManager;
     @SuppressWarnings("unused")
     private DataListener dataListener;
+    @SuppressWarnings("unused")
+    private DeathListener deathListener;
+
+    public TeleportManager getTeleportManager() {
+        return teleportManager;
+    }
 
     @Override
     public void onEnable() {
@@ -49,10 +54,7 @@ public class HomesPlugin extends JavaPlugin {
         this.inputListener = new InputListener(this, homeManager, soundManager);
         this.homeGUI = new HomeGUI(this, homeManager, teleportManager, soundManager, economyManager);
         this.dataListener = new DataListener(this, homeManager);
-        
-        // Update Checker
-        this.updateChecker = new UpdateChecker(this, "naonao0319/homes-plugin");
-        this.updateChecker.checkForUpdates();
+        this.deathListener = new DeathListener(this, tpaManager);
         
         // Link GUI and Input Listener
         this.homeGUI.setInputListener(inputListener);
@@ -288,10 +290,18 @@ public class HomesPlugin extends JavaPlugin {
         
         // TPA Commands
         if (command.getName().equalsIgnoreCase("tpa")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             if (args.length == 0) return false;
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 player.sendMessage(getMessage("player-not-found"));
+                return true;
+            }
+            if (target.getUniqueId().equals(player.getUniqueId())) {
+                player.sendMessage(getMessage("tpa-self"));
                 return true;
             }
             tpaManager.sendRequest(player, target, TpaManager.RequestType.TPA);
@@ -299,10 +309,18 @@ public class HomesPlugin extends JavaPlugin {
         }
         
         if (command.getName().equalsIgnoreCase("tpahere")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             if (args.length == 0) return false;
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 player.sendMessage(getMessage("player-not-found"));
+                return true;
+            }
+            if (target.getUniqueId().equals(player.getUniqueId())) {
+                player.sendMessage(getMessage("tpa-self"));
                 return true;
             }
             tpaManager.sendRequest(player, target, TpaManager.RequestType.TPAHERE);
@@ -310,33 +328,57 @@ public class HomesPlugin extends JavaPlugin {
         }
         
         if (command.getName().equalsIgnoreCase("tpaccept")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             tpaManager.acceptRequest(player);
             return true;
         }
         
         if (command.getName().equalsIgnoreCase("tpdeny")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             tpaManager.denyRequest(player);
             return true;
         }
         
         if (command.getName().equalsIgnoreCase("tpcancel")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             if (args.length == 0) return false;
             tpaManager.cancelRequest(player, args[0]);
             return true;
         }
         
         if (command.getName().equalsIgnoreCase("tpatoggle")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             tpaManager.toggleTpa(player);
             return true;
         }
         
         if (command.getName().equalsIgnoreCase("tpaignore")) {
+            if (!getConfig().getBoolean("settings.tpa.enabled", true)) {
+                player.sendMessage(getMessage("tpa-feature-disabled"));
+                return true;
+            }
             if (args.length == 0) return false;
             tpaManager.ignorePlayer(player, args[0]);
             return true;
         }
         
         if (command.getName().equalsIgnoreCase("back")) {
+            if (!getConfig().getBoolean("settings.back.enabled", true)) {
+                player.sendMessage(getMessage("back-feature-disabled"));
+                return true;
+            }
             tpaManager.teleportBack(player);
             return true;
         }

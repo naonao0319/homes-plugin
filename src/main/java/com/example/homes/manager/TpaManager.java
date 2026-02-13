@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -30,6 +34,7 @@ public class TpaManager {
     // TPA Toggle (Ignore list or global toggle)
     private final Set<UUID> tpaDisabled = new HashSet<>();
     private final Map<UUID, Set<UUID>> ignoredPlayers = new HashMap<>();
+    private final Map<UUID, Long> cooldowns = new HashMap<>();
 
     public enum RequestType {
         TPA, // Sender wants to tp to Receiver
@@ -53,12 +58,24 @@ public class TpaManager {
     }
 
     public void sendRequest(Player sender, Player receiver, RequestType type) {
+        // Cooldown check
+        if (cooldowns.containsKey(sender.getUniqueId())) {
+            long lastUse = cooldowns.get(sender.getUniqueId());
+            int cooldownTime = plugin.getConfig().getInt("settings.tpa.cooldown", 60);
+            long timeLeft = (lastUse + (cooldownTime * 1000)) - System.currentTimeMillis();
+            
+            if (timeLeft > 0) {
+                sender.sendMessage(plugin.getMessage("tpa-cooldown").replace("{seconds}", String.valueOf(timeLeft / 1000)));
+                return;
+            }
+        }
+        
         if (tpaDisabled.contains(receiver.getUniqueId())) {
-            sender.sendMessage(ChatColor.RED + receiver.getName() + " はテレポートリクエストを受け付けていません。");
+            sender.sendMessage(plugin.getMessage("tpa-disabled").replace("{player}", receiver.getName()));
             return;
         }
         if (isIgnored(receiver.getUniqueId(), sender.getUniqueId())) {
-            sender.sendMessage(ChatColor.RED + receiver.getName() + " はあなたのリクエストを無視しています。");
+            sender.sendMessage(plugin.getMessage("tpa-ignored").replace("{player}", receiver.getName()));
             return;
         }
 
@@ -68,11 +85,35 @@ public class TpaManager {
 
         requests.computeIfAbsent(receiver.getUniqueId(), k -> new HashMap<>()).put(sender.getUniqueId(), new TpaRequest(sender.getUniqueId(), type));
 
-        sender.sendMessage(ChatColor.GREEN + receiver.getName() + " にテレポートリクエストを送信しました。");
+        // Update cooldown
+        cooldowns.put(sender.getUniqueId(), System.currentTimeMillis());
+
+        sender.sendMessage(plugin.getMessage("tpa-sent").replace("{player}", receiver.getName()));
         
         String typeMsg = type == RequestType.TPA ? "テレポート" : "カモン(呼び出し)";
-        receiver.sendMessage(ChatColor.GREEN + sender.getName() + " から" + typeMsg + "リクエストが届きました。");
-        receiver.sendMessage(ChatColor.YELLOW + "/tpaccept " + ChatColor.WHITE + "で承認、" + ChatColor.YELLOW + "/tpdeny " + ChatColor.WHITE + "で拒否します。");
+        if (type == RequestType.TPAHERE) {
+             receiver.sendMessage(plugin.getMessage("tpahere-received").replace("{player}", sender.getName()));
+        } else {
+             receiver.sendMessage(plugin.getMessage("tpa-received").replace("{player}", sender.getName()));
+        }
+        
+        // Clickable messages
+        TextComponent accept = new TextComponent("【承認】");
+        accept.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+        accept.setBold(true);
+        accept.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpaccept"));
+        accept.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("クリックして承認").create()));
+        
+        TextComponent space = new TextComponent("  ");
+        
+        TextComponent deny = new TextComponent("【拒否】");
+        deny.setColor(net.md_5.bungee.api.ChatColor.RED);
+        deny.setBold(true);
+        deny.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpdeny"));
+        deny.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("クリックして拒否").create()));
+        
+        receiver.spigot().sendMessage(accept, space, deny);
+        receiver.sendMessage(plugin.getMessage("tpa-info")); // Keep old info message as fallback/hint
         
         // Expire after 60 seconds
         new BukkitRunnable() {
@@ -80,32 +121,37 @@ public class TpaManager {
             public void run() {
                 if (requests.containsKey(receiver.getUniqueId()) && requests.get(receiver.getUniqueId()).containsKey(sender.getUniqueId())) {
                     requests.get(receiver.getUniqueId()).remove(sender.getUniqueId());
-                    if (sender.isOnline()) sender.sendMessage(ChatColor.YELLOW + receiver.getName() + " へのリクエストが期限切れになりました。");
-                    if (receiver.isOnline()) receiver.sendMessage(ChatColor.YELLOW + sender.getName() + " からのリクエストが期限切れになりました。");
+                    if (sender.isOnline()) sender.sendMessage(plugin.getMessage("tpa-expired-sender").replace("{player}", receiver.getName()));
+                    if (receiver.isOnline()) receiver.sendMessage(plugin.getMessage("tpa-expired-receiver").replace("{player}", sender.getName()));
                 }
             }
         }.runTaskLater(plugin, 20 * 60);
     }
 
     public void acceptRequest(Player receiver) {
-        // Accept last request if multiple? Or require name if multiple?
-        // Simple implementation: Accept most recent or ANY if only one.
-        // User spec: /tpaccept - Accepts the request.
-        
         if (!requests.containsKey(receiver.getUniqueId()) || requests.get(receiver.getUniqueId()).isEmpty()) {
-            receiver.sendMessage(ChatColor.RED + "保留中のリクエストはありません。");
+            receiver.sendMessage(plugin.getMessage("tpa-no-request"));
             return;
         }
 
-        // Get the most recent request (Map doesn't guarantee order, need to iterate or track last)
-        // For simplicity, pick first found.
-        UUID senderUuid = requests.get(receiver.getUniqueId()).keySet().iterator().next();
-        acceptRequest(receiver, senderUuid);
+        // Get the most recent request by sorting timestamps
+        Map<UUID, TpaRequest> pending = requests.get(receiver.getUniqueId());
+        TpaRequest latest = null;
+        
+        for (TpaRequest req : pending.values()) {
+            if (latest == null || req.timestamp > latest.timestamp) {
+                latest = req;
+            }
+        }
+        
+        if (latest != null) {
+            acceptRequest(receiver, latest.sender);
+        }
     }
     
     public void acceptRequest(Player receiver, UUID senderUuid) {
         if (!requests.containsKey(receiver.getUniqueId()) || !requests.get(receiver.getUniqueId()).containsKey(senderUuid)) {
-            receiver.sendMessage(ChatColor.RED + "そのプレイヤーからのリクエストはありません。");
+            receiver.sendMessage(plugin.getMessage("tpa-no-request")); // or specific message
             return;
         }
 
@@ -113,28 +159,28 @@ public class TpaManager {
         Player sender = Bukkit.getPlayer(senderUuid);
 
         if (sender == null || !sender.isOnline()) {
-            receiver.sendMessage(ChatColor.RED + "プレイヤーが見つかりません。");
+            receiver.sendMessage(plugin.getMessage("player-not-found"));
             return;
         }
 
         if (req.type == RequestType.TPA) {
             // Sender -> Receiver
-            saveLastLocation(sender);
-            sender.teleport(receiver);
-            sender.sendMessage(ChatColor.GREEN + "リクエストが承認されました。");
-            receiver.sendMessage(ChatColor.GREEN + sender.getName() + " のリクエストを承認しました。");
+            // Use TeleportManager for warmup (target is receiver player)
+            plugin.getTeleportManager().teleport(sender, receiver);
+            sender.sendMessage(plugin.getMessage("tpa-accepted"));
+            receiver.sendMessage(plugin.getMessage("tpa-accepted-target").replace("{player}", sender.getName()));
         } else {
             // Receiver -> Sender (TPAHERE)
-            saveLastLocation(receiver);
-            receiver.teleport(sender);
-            sender.sendMessage(ChatColor.GREEN + receiver.getName() + " があなたのリクエストを承認しました。");
-            receiver.sendMessage(ChatColor.GREEN + "カモンリクエストを承認しました。");
+            // Use TeleportManager for warmup (target is sender player)
+            plugin.getTeleportManager().teleport(receiver, sender);
+            sender.sendMessage(plugin.getMessage("tpa-accepted-target").replace("{player}", receiver.getName()));
+            receiver.sendMessage(plugin.getMessage("tpa-accepted"));
         }
     }
 
     public void denyRequest(Player receiver) {
         if (!requests.containsKey(receiver.getUniqueId()) || requests.get(receiver.getUniqueId()).isEmpty()) {
-            receiver.sendMessage(ChatColor.RED + "保留中のリクエストはありません。");
+            receiver.sendMessage(plugin.getMessage("tpa-no-request"));
             return;
         }
         
@@ -142,53 +188,57 @@ public class TpaManager {
         UUID senderUuid = requests.get(receiver.getUniqueId()).keySet().iterator().next();
         requests.get(receiver.getUniqueId()).remove(senderUuid);
         
-        receiver.sendMessage(ChatColor.YELLOW + "リクエストを拒否しました。");
+        receiver.sendMessage(plugin.getMessage("tpa-request-denied"));
         Player sender = Bukkit.getPlayer(senderUuid);
         if (sender != null) {
-            sender.sendMessage(ChatColor.RED + receiver.getName() + " にリクエストを拒否されました。");
+            sender.sendMessage(plugin.getMessage("tpa-denied-sender").replace("{player}", receiver.getName()));
         }
     }
 
     public void cancelRequest(Player sender, String targetName) {
         Player target = Bukkit.getPlayer(targetName);
         if (target == null) {
-            sender.sendMessage(ChatColor.RED + "プレイヤーが見つかりません。");
+            sender.sendMessage(plugin.getMessage("player-not-found"));
             return;
         }
         
         if (requests.containsKey(target.getUniqueId()) && requests.get(target.getUniqueId()).containsKey(sender.getUniqueId())) {
             requests.get(target.getUniqueId()).remove(sender.getUniqueId());
-            sender.sendMessage(ChatColor.GREEN + "リクエストをキャンセルしました。");
+            sender.sendMessage(plugin.getMessage("tpa-cancelled"));
         } else {
-            sender.sendMessage(ChatColor.RED + "そのプレイヤーへのリクエストはありません。");
+            sender.sendMessage(plugin.getMessage("tpa-no-target-request"));
         }
     }
 
     public void saveLastLocation(Player player) {
-        lastLocations.put(player.getUniqueId(), player.getLocation());
+        // Check config if we should save
+        if (plugin.getConfig().getBoolean("settings.back.enabled", true)) {
+             lastLocations.put(player.getUniqueId(), player.getLocation());
+        }
     }
 
     public void teleportBack(Player player) {
         if (lastLocations.containsKey(player.getUniqueId())) {
             Location loc = lastLocations.get(player.getUniqueId());
-            // Save current location as new back location before tp? Usually /back allows toggle back and forth or stack.
-            // Simple: Swap.
-            Location current = player.getLocation();
-            player.teleport(loc);
-            lastLocations.put(player.getUniqueId(), current);
-            player.sendMessage(ChatColor.GREEN + "前の場所に戻りました。");
+            // Use TeleportManager for consistent behavior (sound, warmup if configured)
+            // TeleportManager calls tpaManager.saveLastLocation() internally, which updates lastLocations with current pos.
+            // This effectively creates a "swap" behavior for /back, which is desired.
+            // No infinite loop risk because TeleportManager just calls saveLastLocation (put into map), not teleportBack recursively.
+            
+            plugin.getTeleportManager().teleport(player, loc);
+            player.sendMessage(plugin.getMessage("back-success"));
         } else {
-            player.sendMessage(ChatColor.RED + "戻る場所がありません。");
+            player.sendMessage(plugin.getMessage("back-no-location"));
         }
     }
 
     public void toggleTpa(Player player) {
         if (tpaDisabled.contains(player.getUniqueId())) {
             tpaDisabled.remove(player.getUniqueId());
-            player.sendMessage(ChatColor.GREEN + "テレポートリクエストを受け付けるようにしました。");
+            player.sendMessage(plugin.getMessage("tpa-toggle-on"));
         } else {
             tpaDisabled.add(player.getUniqueId());
-            player.sendMessage(ChatColor.RED + "テレポートリクエストを拒否するようにしました。");
+            player.sendMessage(plugin.getMessage("tpa-toggle-off"));
         }
     }
 
@@ -200,10 +250,10 @@ public class TpaManager {
         ignoredPlayers.computeIfAbsent(player.getUniqueId(), k -> new HashSet<>());
         if (ignoredPlayers.get(player.getUniqueId()).contains(target.getUniqueId())) {
             ignoredPlayers.get(player.getUniqueId()).remove(target.getUniqueId());
-            player.sendMessage(ChatColor.GREEN + target.getName() + " の無視を解除しました。");
+            player.sendMessage(plugin.getMessage("tpa-ignore-remove").replace("{player}", target.getName()));
         } else {
             ignoredPlayers.get(player.getUniqueId()).add(target.getUniqueId());
-            player.sendMessage(ChatColor.RED + target.getName() + " を無視リストに追加しました。");
+            player.sendMessage(plugin.getMessage("tpa-ignore-add").replace("{player}", target.getName()));
         }
     }
     

@@ -1,75 +1,86 @@
 # HomesPlugin
 
-[English](README.md) | [日本語](README_JP.md)
+Minecraft Spigot/Paper サーバー向けの多機能ホーム管理 & テレポートプラグインです。
+ホームの設定、GUIによる管理、経済連携、そしてプレイヤー間のテレポート（TPA）機能をこれ1つで提供します。
 
-A robust and user-friendly Home Management Plugin for Minecraft servers (Spigot/Paper).
-This plugin allows players to set multiple homes, manage them via a GUI, and even share them publicly with others.
+## ✨ 主な機能
 
-## Features
+*   **ホーム管理**:
+    *   `/sethome <名前>` で現在地をホームに設定。
+    *   `/home <名前>` で設定したホームへテレポート。
+    *   `/delhome <名前>` でホームを削除。
+*   **GUI操作**:
+    *   `/homes` でGUIを開き、クリック操作でホーム一覧を確認・テレポート可能。
+    *   他人の公開ホームへの訪問機能 (`/vhome`)。
+*   **TPA (テレポートリクエスト)**:
+    *   プレイヤー間でのテレポート申請・承認機能。
+    *   `/tpa` (相手の場所へ行く) と `/tpahere` (相手を呼ぶ) に対応。
+    *   チャットの【承認】【拒否】ボタンで簡単操作。
+    *   クールダウン設定、テレポート前の待機時間（5秒）、移動キャンセル機能付き。
+*   **Back機能**:
+    *   `/back` でテレポート前の場所や死亡地点に戻ることが可能。
+*   **経済連携**:
+    *   Vaultプラグインと連携し、ホーム設定やテレポートにコストを設定可能。
+*   **完全な日本語対応**:
+    *   メッセージは `config.yml` ですべてカスタマイズ可能。
 
-*   **GUI-Based Management**: Intuitive chest interface for managing homes.
-*   **Multiple Homes**: Players can set multiple homes (configurable limit).
-*   **Public/Private Toggle**: Players can make their homes public for others to visit.
-*   **Economy Support**: Integration with Vault for charging costs for setting homes, teleporting, or making homes public.
-*   **Database Support**: Supports H2 (local file, default) and MySQL/MariaDB.
-*   **Tab Completion**: Smart tab completion for commands and player names.
-*   **Asynchronous Processing**: Heavy database operations are handled asynchronously to prevent server lag.
-*   **World-Specific Icons**: Customize home icons based on the world they are in.
+## 📥 インストール
 
-## Commands
+1.  `target/home-plugin-1.6.8.jar` をサーバーの `plugins` フォルダに配置します。
+2.  サーバーを再起動します。
+3.  必要に応じて `plugins/HomesPlugin/config.yml` を編集してください。
 
-| Command | Description | Permission |
-| :--- | :--- | :--- |
-| `/sethome <name>` | Set a home at your current location. | `homes.use` |
-| `/delhome <name>` | Delete a specific home. | `homes.use` |
-| `/home <name>` | Teleport to a specific home. | `homes.use` |
-| `/home <player>:<name>` | Teleport to another player's public home. | `homes.use` |
-| `/homes` | Open your home management GUI. | `homes.use` |
-| `/homes <player>` | Open another player's public home list. (Admins see all) | `homes.use` |
-| `/homes reload` | Reload the plugin configuration. | `homes.reload` |
+## 📖 コマンド一覧
 
-## Permissions
+### ホーム関連
+| コマンド | 説明 | 権限 |
+| --- | --- | --- |
+| `/sethome <名前>` | 現在地をホームとして設定します。 | `homes.use` |
+| `/home <名前>` | 設定したホームへテレポートします。 | `homes.use` |
+| `/delhome <名前>` | ホームを削除します。 | `homes.use` |
+| `/homes` | ホーム一覧GUIを開きます。 | `homes.use` |
+| `/homes reload` | プラグインの設定をリロードします。 | `homes.reload` |
+| `/vhome <プレイヤー>` | 他のプレイヤーの公開ホームを表示します。 | `homes.use` |
 
-*   `homes.use`: Basic access to home commands (Default: true).
-*   `homes.admin`: View and manage other players' private homes (Default: OP).
-*   `homes.reload`: Allow reloading the plugin config (Default: OP).
-*   `homes.limit.<number>`: Set the maximum number of homes a player can have (e.g., `homes.limit.5`).
+### TPA・移動関連
+| コマンド | 説明 |
+| --- | --- |
+| `/tpa <プレイヤー>` | 相手に自分のテレポートリクエストを送ります（相手の場所へ行く）。 |
+| `/tpahere <プレイヤー>` | 相手を自分の場所に呼ぶリクエストを送ります（カモン）。 |
+| `/tpaccept` | 届いているリクエストを承認します。 |
+| `/tpdeny` | 届いているリクエストを拒否します。 |
+| `/tpcancel <プレイヤー>` | 送ったリクエストをキャンセルします。 |
+| `/tpatoggle` | TPAの受信拒否設定を切り替えます。 |
+| `/tpaignore <プレイヤー>` | 特定のプレイヤーからのTPAを無視します。 |
+| `/back` | 直前の場所（または死亡地点）に戻ります。 |
 
-## Configuration
-
-### Database
-By default, the plugin uses H2 (local file database). To use MySQL/MariaDB, change `database.type` in `config.yml`.
+## ⚙️ 設定 (config.yml)
 
 ```yaml
-database:
-  type: "mysql" # or "mariadb"
-  host: "localhost"
-  port: "3306"
-  name: "minecraft"
-  user: "root"
-  password: "password"
+settings:
+  default-home-limit: 1  # デフォルトのホーム作成上限数
+  teleport-delay: 3      # テレポート待機時間（秒）
+  
+  # TPA設定
+  tpa:
+    enabled: true        # TPA機能を有効にするか
+    back-on-teleport: true # TPA使用時に移動元を/backに保存するか
+    cooldown: 60         # TPAのクールダウン（秒）
+
+  # Back設定
+  back:
+    enabled: true        # Back機能を有効にするか
+    save-death-location: true # 死亡地点を/backに保存するか
 ```
 
-### Economy
-Requires Vault and an economy plugin (e.g., EssentialsX).
+## 📦 ビルド方法
 
-```yaml
-economy:
-  cost:
-    set-home: 100.0
-    teleport: 10.0
-    make-public: 500.0
+Mavenを使用しています。
+
+```bash
+mvn clean package
 ```
 
-### GUI Customization
-You can customize the GUI title, icons, and messages in `config.yml`.
+## 📜 ライセンス
 
-## Installation
-
-1.  Download `HomesPlugin-1.5.jar`.
-2.  Place it in your server's `plugins` folder.
-3.  (Optional) Install Vault and an Economy plugin for economy features.
-4.  Restart your server.
-
-## Developer
-Developed by naonao.
+MIT License

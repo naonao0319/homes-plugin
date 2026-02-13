@@ -1,73 +1,110 @@
 package com.example.homes.manager;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import com.example.homes.HomesPlugin;
+import com.example.homes.manager.SoundManager;
+import com.example.homes.manager.TpaManager;
 
-public class TeleportManager implements Listener {
+public class TeleportManager {
 
     private final HomesPlugin plugin;
     private final SoundManager soundManager;
     private final TpaManager tpaManager;
-    private final Map<UUID, BukkitTask> pendingTeleports = new HashMap<>();
 
     public TeleportManager(HomesPlugin plugin, SoundManager soundManager, TpaManager tpaManager) {
         this.plugin = plugin;
         this.soundManager = soundManager;
         this.tpaManager = tpaManager;
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     public void teleport(Player player, Location target) {
+        teleport(player, (Object) target);
+    }
+    
+    public void teleport(Player player, Player target) {
+        teleport(player, (Object) target);
+    }
+
+    private void teleport(Player player, Object target) {
         // Save current location to back before teleporting
         if (tpaManager != null) {
             tpaManager.saveLastLocation(player);
         }
-        if (pendingTeleports.containsKey(player.getUniqueId())) {
-            player.sendMessage(plugin.getMessage("teleport-already-in-progress"));
+        
+        // 5 seconds delay fixed (or config)
+        int delay = 5; 
+        
+        if (delay <= 0) {
+            doTeleport(player, target);
+            player.sendMessage(plugin.getMessage("teleport-success"));
+            soundManager.play(player, "teleport-success");
             return;
         }
-
-        int seconds = plugin.getConfig().getInt("settings.teleport-delay", 5);
-        player.sendMessage(plugin.getMessage("teleport-start").replace("{seconds}", String.valueOf(seconds)));
-
-        BukkitTask task = new BukkitRunnable() {
-            int timeLeft = seconds;
-
+        
+        player.sendMessage(ChatColor.YELLOW + String.valueOf(delay) + "秒後にテレポートします。動かないでください。");
+        
+        Location initialLoc = player.getLocation();
+        
+        new BukkitRunnable() {
+            int timeLeft = delay;
+            
             @Override
             public void run() {
-                if (timeLeft <= 0) {
-                    player.teleport(target);
-                    player.sendMessage(plugin.getMessage("teleport-success"));
-                    soundManager.play(player, "teleport-success");
-                    pendingTeleports.remove(player.getUniqueId());
-                    cancel();
+                if (!player.isOnline()) {
+                    this.cancel();
                     return;
                 }
-
-                // Show countdown title/actionbar
-                String title = ChatColor.YELLOW + String.valueOf(timeLeft);
-                String subtitle = ChatColor.GRAY + "テレポートまで...";
-                player.sendTitle(title, subtitle, 0, 25, 5);
-                soundManager.play(player, "teleport-count", 1f, 2f);
-
-                timeLeft--;
+                
+                // Check movement
+                if (player.getLocation().distance(initialLoc) > 0.1) {
+                    player.sendMessage(plugin.getMessage("teleport-cancelled"));
+                    soundManager.play(player, "teleport-fail");
+                    this.cancel();
+                    return;
+                }
+                
+                if (timeLeft <= 0) {
+                    doTeleport(player, target);
+                    player.sendMessage(plugin.getMessage("teleport-success"));
+                    soundManager.play(player, "teleport-success");
+                    this.cancel();
+                } else {
+                    player.sendTitle(ChatColor.GREEN + String.valueOf(timeLeft), "", 0, 20, 0);
+                    soundManager.play(player, "teleport-count");
+                    timeLeft--;
+                }
             }
         }.runTaskTimer(plugin, 0L, 20L);
+    }
+    
+    private void doTeleport(Player player, Object target) {
+        if (target instanceof Player) {
+            Player targetPlayer = (Player) target;
+            if (targetPlayer.isOnline()) {
+                player.teleport(targetPlayer.getLocation());
+                playTeleportEffect(player);
+            } else {
+                player.sendMessage(ChatColor.RED + "テレポート先が見つかりません。");
+            }
+        } else if (target instanceof Location) {
+            player.teleport((Location) target);
+            playTeleportEffect(player);
+        }
+    }
 
-        pendingTeleports.put(player.getUniqueId(), task);
+    private void playTeleportEffect(Player player) {
+        // Sound and Particles on arrival
+        Location loc = player.getLocation();
+        // Increase count and spread for better visibility
+        player.getWorld().spawnParticle(Particle.PORTAL, loc.add(0, 1, 0), 100, 0.5, 1, 0.5);
+        player.getWorld().spawnParticle(Particle.END_ROD, loc, 50, 0.5, 1, 0.5); // Add End Rod for visibility
+        player.getWorld().playSound(loc, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
     }
 
     @EventHandler
