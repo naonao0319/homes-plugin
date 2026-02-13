@@ -1,6 +1,6 @@
 name: homes
 api: "1.21"
-version: 1.5.1
+version: 1.6.1
 main: com.example.homes.HomesPlugin
 api-version: 1.21
 author: naonao
@@ -18,6 +18,33 @@ commands:
   delhome:
     description: ホームを削除する
     usage: /delhome <名前>
+  vhome:
+    description: 他のプレイヤーの公開ホームを訪問する
+    usage: /vhome <プレイヤー名>
+  tpa:
+    description: テレポートリクエストを送信する
+    usage: /tpa <プレイヤー名>
+  tpahere:
+    description: 自分の場所にテレポートさせるリクエストを送信する
+    usage: /tpahere <プレイヤー名>
+  tpaccept:
+    description: テレポートリクエストを承認する
+    usage: /tpaccept
+  tpdeny:
+    description: テレポートリクエストを拒否する
+    usage: /tpdeny
+  tpcancel:
+    description: テレポートリクエストをキャンセルする
+    usage: /tpcancel <プレイヤー名>
+  tpatoggle:
+    description: テレポートリクエストの受信設定を切り替える
+    usage: /tpatoggle
+  tpaignore:
+    description: 特定のプレイヤーからのリクエストを無視する
+    usage: /tpaignore <プレイヤー名>
+  back:
+    description: 直前の場所に戻る
+    usage: /back
 permissions:
   homes.use:
     description: 基本的なホーム機能の使用権限

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -37,11 +39,33 @@ public class HomeTabCompleter implements TabCompleter {
                 completions.addAll(homes.keySet());
             }
             
-            // /homes [list] [player]
+            // /homes [list]
             if (cmdName.equals("homes")) {
                 completions.add("list");
+                // Removed player completions for /homes
+            }
+            
+            // /vhome <player>
+            if (cmdName.equals("vhome")) {
                 for (Player p : player.getServer().getOnlinePlayers()) {
                     completions.add(p.getName());
+                }
+                for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+                     if (op.getName() != null && !completions.contains(op.getName())) {
+                         completions.add(op.getName());
+                     }
+                }
+            }
+            
+            // TPA Commands
+            if (cmdName.equals("tpa") || cmdName.equals("tpahere") || cmdName.equals("tpcancel") || cmdName.equals("tpaignore")) {
+                for (Player p : player.getServer().getOnlinePlayers()) {
+                    completions.add(p.getName());
+                }
+                for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+                     if (op.getName() != null && !completions.contains(op.getName())) {
+                         completions.add(op.getName());
+                     }
                 }
             }
             

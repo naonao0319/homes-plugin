@@ -5,6 +5,7 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -18,6 +19,8 @@ import com.example.homes.manager.HomeTabCompleter;
 import com.example.homes.manager.InputListener;
 import com.example.homes.manager.SoundManager;
 import com.example.homes.manager.TeleportManager;
+import com.example.homes.manager.TpaManager;
+import com.example.homes.manager.UpdateChecker;
 
 public class HomesPlugin extends JavaPlugin {
 
@@ -27,6 +30,8 @@ public class HomesPlugin extends JavaPlugin {
     private InputListener inputListener;
     private SoundManager soundManager;
     private EconomyManager economyManager;
+    private UpdateChecker updateChecker;
+    private TpaManager tpaManager;
     @SuppressWarnings("unused")
     private DataListener dataListener;
 
@@ -35,13 +40,19 @@ public class HomesPlugin extends JavaPlugin {
         // Save default config
         saveDefaultConfig();
 
+        this.tpaManager = new TpaManager(this);
+        
         // Initialize Managers
         this.soundManager = new SoundManager(this);
         this.homeManager = new HomeManager(this);
-        this.teleportManager = new TeleportManager(this, soundManager);
+        this.teleportManager = new TeleportManager(this, soundManager, tpaManager); // Pass tpaManager
         this.inputListener = new InputListener(this, homeManager, soundManager);
         this.homeGUI = new HomeGUI(this, homeManager, teleportManager, soundManager, economyManager);
         this.dataListener = new DataListener(this, homeManager);
+        
+        // Update Checker
+        this.updateChecker = new UpdateChecker(this, "naonao0319/homes-plugin");
+        this.updateChecker.checkForUpdates();
         
         // Link GUI and Input Listener
         this.homeGUI.setInputListener(inputListener);
@@ -53,6 +64,15 @@ public class HomesPlugin extends JavaPlugin {
         getCommand("homes").setTabCompleter(tabCompleter);
         getCommand("sethome").setTabCompleter(tabCompleter);
         getCommand("delhome").setTabCompleter(tabCompleter);
+        getCommand("vhome").setTabCompleter(tabCompleter);
+        
+        // TPA Commands Tab Completer (Reusing HomeTabCompleter logic if simple, or create new)
+        // For now, TPA commands need player names. HomeTabCompleter already has some logic but we should extend it or just use it.
+        // We will update HomeTabCompleter to handle these new commands.
+        getCommand("tpa").setTabCompleter(tabCompleter);
+        getCommand("tpahere").setTabCompleter(tabCompleter);
+        getCommand("tpcancel").setTabCompleter(tabCompleter);
+        getCommand("tpaignore").setTabCompleter(tabCompleter);
 
         getLogger().info("HomesPlugin が有効になりました！");
     }
@@ -205,7 +225,7 @@ public class HomesPlugin extends JavaPlugin {
             return true;
         }
 
-        // /homes [list] [player]
+        // /homes [list]
         if (command.getName().equalsIgnoreCase("homes")) {
             
             // /homes list
@@ -224,35 +244,100 @@ public class HomesPlugin extends JavaPlugin {
                 return true;
             }
             
-            // /homes <player> (View other's homes)
+            // Removed /homes <player> logic. Use /vhome instead.
             if (args.length > 0 && !args[0].equalsIgnoreCase("reload")) {
-                // Allow viewing other players (GUI filters public/private)
-                
-                String targetName = args[0];
-                Player target = Bukkit.getPlayer(targetName);
-                if (target == null) {
-                    sender.sendMessage(getMessage("player-not-found"));
-                    return true;
-                }
-                
-                // If viewing self, just use standard open
-                if (target.getUniqueId().equals(player.getUniqueId())) {
-                    homeGUI.open(player);
-                    return true;
-                }
-                
-                // Message based on permission
-                if (sender.hasPermission("homes.admin")) {
-                    sender.sendMessage(getMessage("admin-view").replace("{player}", target.getName()));
-                } else {
-                    sender.sendMessage(ChatColor.GREEN + target.getName() + "の公開ホームを表示します。");
-                }
-                
-                homeGUI.open(player, target);
-                return true;
+                 player.sendMessage(ChatColor.YELLOW + "他のプレイヤーのホームを見るには " + ChatColor.GOLD + "/vhome <プレイヤー名>" + ChatColor.YELLOW + " を使用してください。");
+                 return true;
             }
 
             homeGUI.open(player);
+            return true;
+        }
+
+        // /vhome <player>
+        if (command.getName().equalsIgnoreCase("vhome")) {
+            if (args.length == 0) {
+                player.sendMessage(ChatColor.RED + "使用法: /vhome <プレイヤー名>");
+                return true;
+            }
+
+            String targetName = args[0];
+            OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
+            if (target == null || (!target.hasPlayedBefore() && !target.isOnline())) {
+                sender.sendMessage(getMessage("player-not-found"));
+                return true;
+            }
+
+            // If viewing self, just use standard open
+            if (target.getUniqueId().equals(player.getUniqueId())) {
+                homeGUI.open(player);
+                return true;
+            }
+
+            // Message based on permission
+            String name = target.getName() != null ? target.getName() : targetName;
+            if (sender.hasPermission("homes.admin")) {
+                sender.sendMessage(getMessage("admin-view").replace("{player}", name));
+            } else {
+                sender.sendMessage(ChatColor.GREEN + name + "の公開ホームを表示します。");
+            }
+
+            homeGUI.open(player, target);
+            return true;
+        }
+        
+        // TPA Commands
+        if (command.getName().equalsIgnoreCase("tpa")) {
+            if (args.length == 0) return false;
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target == null) {
+                player.sendMessage(getMessage("player-not-found"));
+                return true;
+            }
+            tpaManager.sendRequest(player, target, TpaManager.RequestType.TPA);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpahere")) {
+            if (args.length == 0) return false;
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target == null) {
+                player.sendMessage(getMessage("player-not-found"));
+                return true;
+            }
+            tpaManager.sendRequest(player, target, TpaManager.RequestType.TPAHERE);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpaccept")) {
+            tpaManager.acceptRequest(player);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpdeny")) {
+            tpaManager.denyRequest(player);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpcancel")) {
+            if (args.length == 0) return false;
+            tpaManager.cancelRequest(player, args[0]);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpatoggle")) {
+            tpaManager.toggleTpa(player);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("tpaignore")) {
+            if (args.length == 0) return false;
+            tpaManager.ignorePlayer(player, args[0]);
+            return true;
+        }
+        
+        if (command.getName().equalsIgnoreCase("back")) {
+            tpaManager.teleportBack(player);
             return true;
         }
 

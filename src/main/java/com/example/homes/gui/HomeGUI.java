@@ -1,16 +1,20 @@
 package com.example.homes.gui;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -36,9 +40,15 @@ public class HomeGUI implements Listener {
     private final SoundManager soundManager;
     private final EconomyManager economyManager;
     private InputListener inputListener;
-    private final int GUI_SIZE = 27;
+    private static final int GUI_SIZE_SMALL = 27;
+    private static final int GUI_SIZE_LARGE = 54;
     private final Set<UUID> deleteModePlayers = new HashSet<>();
     private final Set<UUID> publicModePlayers = new HashSet<>();
+    
+    // Pagination state
+    private final Map<UUID, Integer> currentStartIndex = new HashMap<>();
+    private final Map<UUID, Stack<Integer>> pageHistory = new HashMap<>();
+    private final Map<UUID, Integer> lastPageSize = new HashMap<>();
 
     public HomeGUI(HomesPlugin plugin, HomeManager homeManager, TeleportManager teleportManager, SoundManager soundManager, EconomyManager economyManager) {
         this.plugin = plugin;
@@ -57,7 +67,7 @@ public class HomeGUI implements Listener {
         open(player, player);
     }
     
-    public void open(Player viewer, Player target) {
+    public void open(Player viewer, OfflinePlayer target) {
         // Floodgate check removed
         
         boolean isOwner = viewer.getUniqueId().equals(target.getUniqueId());
@@ -75,14 +85,26 @@ public class HomeGUI implements Listener {
         else if (publicMode) defaultTitle = "&b公開設定モード (クリックで切替)";
         
         if (!isOwner) {
-            defaultTitle = target.getName() + "のホーム";
+            String name = target.getName() != null ? target.getName() : "Unknown";
+            defaultTitle = name + "のホーム";
             titleKey = "gui.title-other"; // Custom key if wanted, fallback to defaultTitle
         }
         
         String title = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString(titleKey, defaultTitle));
-        // Ensure title is unique enough or handle in listener
         
-        Inventory inv = Bukkit.createInventory(null, GUI_SIZE, title);
+        // Load and Sort Homes
+        // HomeManager.getHomes(OfflinePlayer) or getHomes(UUID) needed
+        Map<String, Location> homesMap = homeManager.getHomes(target.getUniqueId());
+        List<String> visibleHomes = getVisibleHomes(viewer, target, homesMap);
+        Collections.sort(visibleHomes); // Sort by name for consistent order
+
+        // Determine GUI Size
+        int guiSize = GUI_SIZE_SMALL;
+        if (visibleHomes.size() > 18) {
+            guiSize = GUI_SIZE_LARGE;
+        }
+
+        Inventory inv = Bukkit.createInventory(null, guiSize, title);
 
         // Slot 0: Create Home Button (Top Left) - Only for Owner
         if (isOwner) {
@@ -97,8 +119,23 @@ public class HomeGUI implements Listener {
                 }
                 
                 // Show limit info
-                int current = homeManager.getHomes(target).size();
-                int max = homeManager.getMaxHomes(target);
+                int current = homeManager.getHomes(target.getUniqueId()).size();
+                // Check max homes. OfflinePlayer might not work with permissions check easily if strictly permission based.
+                // But HomeManager.getMaxHomes takes Player. 
+                // If offline, we can't check permissions easily without vault or luckperms api.
+                // Assuming Owner is Online Player if we are here (open(Player, Player) calls this).
+                // Wait, if target is Offline, we can't cast to Player.
+                // But Create Home is only for Owner. Owner must be online to click.
+                // So if isOwner, target IS viewer, so target is Online.
+                int max = 0;
+                if (target.isOnline()) {
+                     max = homeManager.getMaxHomes((Player)target);
+                } else {
+                     // Fallback or specific logic for offline? Owner can't be offline and viewing.
+                     // So this branch is safe.
+                     max = plugin.getConfig().getInt("settings.default-home-limit", 1);
+                }
+                
                 lore.add(ChatColor.YELLOW + "現在の作成数: " + current + " / " + max);
                 
                 // Show cost
@@ -173,95 +210,146 @@ public class HomeGUI implements Listener {
             inv.setItem(7, publicItem);
         }
         
-        // Load Homes of Target
-        Map<String, Location> homes = homeManager.getHomes(target);
-        List<String> visibleHomes = getVisibleHomes(viewer, target, homes);
-        
-        // Fill slots starting from 9 (Row 2 first slot) to 26 (End of Row 3)
-        // Available slots: 9 to 26 = 18 slots
-        int startSlot = 9;
+        // Pagination Logic
+        if (!currentStartIndex.containsKey(viewer.getUniqueId())) {
+            currentStartIndex.put(viewer.getUniqueId(), 0);
+        }
+        if (!pageHistory.containsKey(viewer.getUniqueId())) {
+            pageHistory.put(viewer.getUniqueId(), new Stack<>());
+        }
 
+        int startIndex = currentStartIndex.get(viewer.getUniqueId());
+        // Validation: if start index out of bounds, reset
+        if (startIndex >= visibleHomes.size() && !visibleHomes.isEmpty()) {
+            startIndex = 0;
+            currentStartIndex.put(viewer.getUniqueId(), 0);
+            pageHistory.get(viewer.getUniqueId()).clear();
+        }
+
+        boolean hasPrev = !pageHistory.get(viewer.getUniqueId()).isEmpty();
+        int homesDisplayed = 0;
+        
+        // Iterate slots
+        int startSlot = 9;
+        int endSlot = guiSize - 1; // 26 or 53
+        
         // Get world icons config
         String defaultIcon = plugin.getConfig().getString("gui.home-icon.default-material", "RED_BED");
         Material defaultMat = Material.getMaterial(defaultIcon);
         if (defaultMat == null) defaultMat = Material.RED_BED;
-        
         ConfigurationSection worldIcons = plugin.getConfig().getConfigurationSection("gui.home-icon.world-icons");
 
-        for (int i = 0; i < visibleHomes.size(); i++) {
-            if (startSlot + i >= GUI_SIZE) break; 
-
-            String homeName = visibleHomes.get(i);
-            Location loc = homes.get(homeName);
-            boolean isPublic = homeManager.isPublic(target.getUniqueId(), homeName);
-            
-            // Determine icon material based on world
-            Material iconMat = defaultMat;
-            if (worldIcons != null && loc.getWorld() != null) {
-                String worldName = loc.getWorld().getName();
-                String matName = worldIcons.getString(worldName);
-                if (matName != null) {
-                    Material m = Material.getMaterial(matName);
-                    if (m != null) iconMat = m;
+        for (int i = startSlot; i <= endSlot; i++) {
+            // Navigation Buttons (Only for Large GUI)
+            if (guiSize == GUI_SIZE_LARGE) {
+                if (i == 45 && hasPrev) {
+                    // Previous Button
+                    ItemStack prevItem = new ItemStack(Material.ARROW);
+                    ItemMeta prevMeta = prevItem.getItemMeta();
+                    if (prevMeta != null) {
+                        prevMeta.setDisplayName(ChatColor.GREEN + "← 前のページ");
+                        prevItem.setItemMeta(prevMeta);
+                    }
+                    inv.setItem(i, prevItem);
+                    continue;
                 }
-            }
-
-            ItemStack item = new ItemStack(iconMat);
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                String nameTmpl = plugin.getConfig().getString("gui.home-icon.name", "&6{name}");
-                meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', nameTmpl.replace("{name}", homeName)));
-                
-                List<String> lore = new ArrayList<>();
-                
-                // Add base lore
-                for (String line : plugin.getConfig().getStringList("gui.home-icon.lore")) {
-                    String l = line.replace("{world}", loc.getWorld().getName())
-                                   .replace("{x}", String.valueOf(loc.getBlockX()))
-                                   .replace("{y}", String.valueOf(loc.getBlockY()))
-                                   .replace("{z}", String.valueOf(loc.getBlockZ()));
-                    lore.add(ChatColor.translateAlternateColorCodes('&', l));
-                }
-                
-                // Public Status
-                if (isPublic) {
-                    lore.add(ChatColor.GREEN + "公開中");
-                } else {
-                    lore.add(ChatColor.RED + "非公開");
-                }
-                
-                // Add action specific lore
-                List<String> actionLore = new ArrayList<>(); // Initialize empty
-                if (deleteMode) {
-                    actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-delete");
-                } else if (publicMode) {
-                     actionLore.add(ChatColor.YELLOW + "クリックして公開/非公開を切り替え");
-                } else {
-                    actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-teleport");
-                    // Show cost if not owner and cost enabled
-                    if (economyManager != null && economyManager.hasEconomy()) {
-                         double cost = plugin.getConfig().getDouble("economy.cost.teleport", 0);
-                         if (cost > 0) {
-                             lore.add(ChatColor.GOLD + "テレポート費用: " + economyManager.format(cost));
-                         }
+                if (i == 53) {
+                    // Check if we need Next Button
+                    // Items remaining to show including this one
+                    int remaining = visibleHomes.size() - (startIndex + homesDisplayed);
+                    if (remaining > 1) { // Need more than just this slot
+                        // Next Button
+                        ItemStack nextItem = new ItemStack(Material.ARROW);
+                        ItemMeta nextMeta = nextItem.getItemMeta();
+                        if (nextMeta != null) {
+                            nextMeta.setDisplayName(ChatColor.GREEN + "次のページ →");
+                            nextItem.setItemMeta(nextMeta);
+                        }
+                        inv.setItem(i, nextItem);
+                        continue;
                     }
                 }
+            }
+
+            // Place Home
+            if (startIndex + homesDisplayed < visibleHomes.size()) {
+                String homeName = visibleHomes.get(startIndex + homesDisplayed);
+                Location loc = homesMap.get(homeName);
+                boolean isPublic = homeManager.isPublic(target.getUniqueId(), homeName);
                 
-                for (String line : actionLore) {
-                    lore.add(ChatColor.translateAlternateColorCodes('&', line));
+                // Determine icon material based on world
+                Material iconMat = defaultMat;
+                if (worldIcons != null && loc.getWorld() != null) {
+                    String worldName = loc.getWorld().getName();
+                    String matName = worldIcons.getString(worldName);
+                    if (matName != null) {
+                        Material m = Material.getMaterial(matName);
+                        if (m != null) iconMat = m;
+                    }
+                }
+
+                ItemStack item = new ItemStack(iconMat);
+                ItemMeta meta = item.getItemMeta();
+                if (meta != null) {
+                    String nameTmpl = plugin.getConfig().getString("gui.home-icon.name", "&6{name}");
+                    meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', nameTmpl.replace("{name}", homeName)));
+                    
+                    List<String> lore = new ArrayList<>();
+                    
+                    // Add base lore
+                    for (String line : plugin.getConfig().getStringList("gui.home-icon.lore")) {
+                        String l = line.replace("{world}", loc.getWorld().getName())
+                                       .replace("{x}", String.valueOf(loc.getBlockX()))
+                                       .replace("{y}", String.valueOf(loc.getBlockY()))
+                                       .replace("{z}", String.valueOf(loc.getBlockZ()));
+                        lore.add(ChatColor.translateAlternateColorCodes('&', l));
+                    }
+                    
+                    // Public Status
+                    if (isPublic) {
+                        lore.add(ChatColor.GREEN + "公開中");
+                    } else {
+                        lore.add(ChatColor.RED + "非公開");
+                    }
+                    
+                    // Add action specific lore
+                    List<String> actionLore = new ArrayList<>(); // Initialize empty
+                    if (deleteMode) {
+                        actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-delete");
+                    } else if (publicMode) {
+                         actionLore.add(ChatColor.YELLOW + "クリックして公開/非公開を切り替え");
+                    } else {
+                        actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-teleport");
+                        // Show cost if not owner and cost enabled
+                        if (economyManager != null && economyManager.hasEconomy()) {
+                             double cost = plugin.getConfig().getDouble("economy.cost.teleport", 0);
+                             if (cost > 0) {
+                                 lore.add(ChatColor.GOLD + "テレポート費用: " + economyManager.format(cost));
+                             }
+                        }
+                    }
+                    
+                    for (String line : actionLore) {
+                        lore.add(ChatColor.translateAlternateColorCodes('&', line));
+                    }
+                    
+                    meta.setLore(lore);
+                    item.setItemMeta(meta);
                 }
                 
-                meta.setLore(lore);
-                item.setItemMeta(meta);
+                inv.setItem(i, item);
+                homesDisplayed++;
+            } else {
+                break; // No more homes
             }
-            
-            inv.setItem(startSlot + i, item);
         }
+        
+        lastPageSize.put(viewer.getUniqueId(), homesDisplayed);
 
         viewer.openInventory(inv);
     }
     
-    private List<String> getVisibleHomes(Player viewer, Player target, Map<String, Location> homes) {
+    private List<String> getVisibleHomes(Player viewer, OfflinePlayer target, Map<String, Location> homes) {
         List<String> visibleHomes = new ArrayList<>();
         boolean isOwner = viewer.getUniqueId().equals(target.getUniqueId());
         boolean isAdmin = viewer.hasPermission("homes.admin") && !isOwner;
@@ -303,10 +391,11 @@ public class HomeGUI implements Listener {
         
         // Determine target (owner of homes)
         // If title is default, target is viewer. If title is "X's Home", target is X.
-        Player target = viewer;
+        OfflinePlayer target = viewer;
         if (title.contains("のホーム")) {
             String targetName = ChatColor.stripColor(title).replace("のホーム", "");
-            target = Bukkit.getPlayer(targetName); // Warning: this relies on title not changing format
+            // Try to find offline player
+            target = Bukkit.getOfflinePlayer(targetName); 
         }
         
         if (target == null) target = viewer; // Fallback
@@ -315,6 +404,37 @@ public class HomeGUI implements Listener {
         boolean isAdmin = viewer.hasPermission("homes.admin") && !isOwner;
         
         int slot = event.getSlot();
+
+        // Handle Navigation Buttons (Prev: 45, Next: 53)
+        // Check if item name is "Next Page" or "Previous Page" (or matches config if we had it)
+        ItemStack clickedItem = event.getCurrentItem();
+        if (clickedItem.getType() == Material.ARROW && clickedItem.hasItemMeta() && clickedItem.getItemMeta().hasDisplayName()) {
+            String displayName = clickedItem.getItemMeta().getDisplayName();
+            if (displayName.contains("次のページ")) {
+                // Next Page
+                if (currentStartIndex.containsKey(viewer.getUniqueId())) {
+                    int currentStart = currentStartIndex.get(viewer.getUniqueId());
+                    int displayed = lastPageSize.getOrDefault(viewer.getUniqueId(), 0);
+                    
+                    pageHistory.get(viewer.getUniqueId()).push(currentStart);
+                    currentStartIndex.put(viewer.getUniqueId(), currentStart + displayed);
+                    
+                    soundManager.play(viewer, "gui-click");
+                    open(viewer, target);
+                }
+                return;
+            } else if (displayName.contains("前のページ")) {
+                // Previous Page
+                if (pageHistory.containsKey(viewer.getUniqueId()) && !pageHistory.get(viewer.getUniqueId()).isEmpty()) {
+                    int prevStart = pageHistory.get(viewer.getUniqueId()).pop();
+                    currentStartIndex.put(viewer.getUniqueId(), prevStart);
+                    
+                    soundManager.play(viewer, "gui-click");
+                    open(viewer, target);
+                }
+                return;
+            }
+        }
 
         // Create Home Button at Slot 0
         if (slot == 0 && isOwner) {
@@ -354,17 +474,52 @@ public class HomeGUI implements Listener {
             return;
         }
 
-        // Home Items (Slot 9-26)
-        if (slot >= 9 && slot <= 26) {
-            ItemStack clickedItem = event.getCurrentItem();
+        // Home Items (Slot 9-53)
+        if (slot >= 9 && slot <= 53) {
             if (clickedItem.hasItemMeta() && clickedItem.getItemMeta().hasDisplayName()) {
                 
-                Map<String, Location> homes = homeManager.getHomes(target);
-                List<String> visibleHomes = getVisibleHomes(viewer, target, homes);
+                // Re-calculate mapping to find home
+                // We need to simulate the filling logic to map slot -> index
+                // Or easier: we know the homes are sorted and we know our start index
+                // But holes (buttons) make it tricky.
+                // Re-running the loop is safest.
                 
-                int index = slot - 9;
-                if (index < visibleHomes.size()) {
-                    String homeName = visibleHomes.get(index);
+                Map<String, Location> homesMap = homeManager.getHomes(target.getUniqueId());
+                List<String> visibleHomes = getVisibleHomes(viewer, target, homesMap);
+                Collections.sort(visibleHomes);
+                
+                int startIndex = currentStartIndex.getOrDefault(viewer.getUniqueId(), 0);
+                boolean hasPrev = !pageHistory.getOrDefault(viewer.getUniqueId(), new Stack<>()).isEmpty();
+                int guiSize = visibleHomes.size() > 18 ? GUI_SIZE_LARGE : GUI_SIZE_SMALL;
+                
+                // Simulate loop to find which home matches this slot
+                int currentSlot = 9;
+                int endSlot = guiSize - 1;
+                int homeIndex = startIndex;
+                String matchedHome = null;
+                
+                for (int i = currentSlot; i <= endSlot; i++) {
+                    if (guiSize == GUI_SIZE_LARGE) {
+                        if (i == 45 && hasPrev) continue; // Skip Prev Button
+                        if (i == 53) {
+                            int remaining = visibleHomes.size() - homeIndex;
+                            if (remaining > 1) continue; // Skip Next Button
+                        }
+                    }
+                    
+                    if (i == slot) {
+                        // Found clicked slot
+                        if (homeIndex < visibleHomes.size()) {
+                            matchedHome = visibleHomes.get(homeIndex);
+                        }
+                        break;
+                    }
+                    
+                    homeIndex++;
+                }
+
+                if (matchedHome != null) {
+                    String homeName = matchedHome;
                     
                     if (deleteModePlayers.contains(viewer.getUniqueId())) {
                         // Delete Mode Logic (existing)
@@ -422,6 +577,11 @@ public class HomeGUI implements Listener {
         if (event.getReason() != InventoryCloseEvent.Reason.OPEN_NEW) {
             deleteModePlayers.remove(event.getPlayer().getUniqueId());
             publicModePlayers.remove(event.getPlayer().getUniqueId());
+            
+            // Clear pagination data
+            currentStartIndex.remove(event.getPlayer().getUniqueId());
+            pageHistory.remove(event.getPlayer().getUniqueId());
+            lastPageSize.remove(event.getPlayer().getUniqueId());
         }
     }
 }

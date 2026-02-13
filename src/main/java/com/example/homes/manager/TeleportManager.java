@@ -20,15 +20,21 @@ public class TeleportManager implements Listener {
 
     private final HomesPlugin plugin;
     private final SoundManager soundManager;
+    private final TpaManager tpaManager;
     private final Map<UUID, BukkitTask> pendingTeleports = new HashMap<>();
 
-    public TeleportManager(HomesPlugin plugin, SoundManager soundManager) {
+    public TeleportManager(HomesPlugin plugin, SoundManager soundManager, TpaManager tpaManager) {
         this.plugin = plugin;
         this.soundManager = soundManager;
+        this.tpaManager = tpaManager;
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     public void teleport(Player player, Location target) {
+        // Save current location to back before teleporting
+        if (tpaManager != null) {
+            tpaManager.saveLastLocation(player);
+        }
         if (pendingTeleports.containsKey(player.getUniqueId())) {
             player.sendMessage(plugin.getMessage("teleport-already-in-progress"));
             return;

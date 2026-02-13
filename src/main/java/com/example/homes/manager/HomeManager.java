@@ -147,9 +147,9 @@ public class HomeManager {
 
     public int getMaxHomes(Player player) {
         if (player.isOp()) {
-            return 18;
+            return 100;
         }
-        for (int i = 18; i >= 1; i--) {
+        for (int i = 100; i >= 1; i--) {
             if (player.hasPermission("homes.limit." + i)) {
                 return i;
             }

@@ -2,5 +2,6 @@
     "java.configuration.updateBuildConfiguration": "automatic",
     "yaml.schemas": {
         "https://www.schemastore.org/pocketmine-plugin.json": "file:///c%3A/Users/2010n/MinecraftDev/home/src/main/resources/plugin.yml"
-    }
+    },
+    "java.compile.nullAnalysis.mode": "automatic"
 }
