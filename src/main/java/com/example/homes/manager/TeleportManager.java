@@ -8,8 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.example.homes.HomesPlugin;
-import com.example.homes.manager.SoundManager;
-import com.example.homes.manager.TpaManager;
 
 public class TeleportManager {
 
@@ -105,34 +103,5 @@ public class TeleportManager {
         player.getWorld().spawnParticle(Particle.PORTAL, loc.add(0, 1, 0), 100, 0.5, 1, 0.5);
         player.getWorld().spawnParticle(Particle.END_ROD, loc, 50, 0.5, 1, 0.5); // Add End Rod for visibility
         player.getWorld().playSound(loc, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
-    }
-
-    @EventHandler
-    public void onMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        if (pendingTeleports.containsKey(player.getUniqueId())) {
-            // Check if actually moved block
-            if (event.getFrom().getBlockX() != event.getTo().getBlockX()
-                    || event.getFrom().getBlockY() != event.getTo().getBlockY()
-                    || event.getFrom().getBlockZ() != event.getTo().getBlockZ()) {
-                
-                cancelTeleport(player);
-                player.sendMessage(plugin.getMessage("teleport-cancelled"));
-                player.sendTitle("", "", 0, 0, 0); // Clear title
-                soundManager.play(player, "teleport-fail");
-            }
-        }
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        cancelTeleport(event.getPlayer());
-    }
-
-    private void cancelTeleport(Player player) {
-        if (pendingTeleports.containsKey(player.getUniqueId())) {
-            pendingTeleports.get(player.getUniqueId()).cancel();
-            pendingTeleports.remove(player.getUniqueId());
-        }
     }
 }
