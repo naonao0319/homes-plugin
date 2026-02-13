@@ -1,10 +1,23 @@
+# Maven
 target/
-*.class
 *.log
+
+# IDEs
 .idea/
 *.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# Trae
+.trae/
+
+# OS
 .DS_Store
-*.jar
-!src/main/resources/*.jar
+Thumbs.db
+
+# Other
 server/
 dependency-reduced-pom.xml
