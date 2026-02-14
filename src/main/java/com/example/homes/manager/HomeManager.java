@@ -146,14 +146,13 @@ public class HomeManager {
     }
 
     public int getMaxHomes(Player player) {
-        if (player.isOp()) {
-            return 100;
-        }
+        // Check permissions from 100 down to 1
         for (int i = 100; i >= 1; i--) {
             if (player.hasPermission("homes.limit." + i)) {
                 return i;
             }
         }
+        // Fallback to config default
         return plugin.getConfig().getInt("settings.default-home-limit", 1);
     }
 

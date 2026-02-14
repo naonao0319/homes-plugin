@@ -120,3 +120,5 @@ messages:
   back-no-location: "&c戻る場所がありません。"
   back-feature-disabled: "&c/back コマンドは無効化されています。"
   reload-success: "&a設定をリロードしました。"
+  enter-name: "&aホームの名前を入力してください。"
+  cancel-info: "&7キャンセルするには &c'cancel' &7と入力してください。"

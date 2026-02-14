@@ -1,6 +1,6 @@
 name: homes
 api: "1.21"
-version: 1.6.11
+version: 1.6.12
 main: com.example.homes.HomesPlugin
 api-version: 1.21
 author: naonao
