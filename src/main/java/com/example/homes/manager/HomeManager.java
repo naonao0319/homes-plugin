@@ -147,6 +147,13 @@ public class HomeManager {
 
     public int getMaxHomes(Player player) {
         // Check permissions from 100 down to 1
+        // Note: OPs usually have all permissions, so they might match homes.limit.100 if we check loop first.
+        // So we should check specific OP config first if we want to control OP limit separately.
+        
+        if (player.isOp()) {
+            return plugin.getConfig().getInt("settings.op-home-limit", 100);
+        }
+
         for (int i = 100; i >= 1; i--) {
             if (player.hasPermission("homes.limit." + i)) {
                 return i;
