@@ -229,7 +229,7 @@ public class HomesPlugin extends JavaPlugin {
                 return true;
             }
             
-            // Removed /homes <player> logic. Use /vhome instead.
+            // /homes <player> 機能は削除されました。代わりに /vhome <player> を使用してください。
             if (args.length > 0 && !args[0].equalsIgnoreCase("reload")) {
                  player.sendMessage(ChatColor.YELLOW + "他のプレイヤーのホームを見るには " + ChatColor.GOLD + "/vhome <プレイヤー名>" + ChatColor.YELLOW + " を使用してください。");
                  return true;
