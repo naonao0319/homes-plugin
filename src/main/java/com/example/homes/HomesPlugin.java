@@ -61,7 +61,7 @@ public class HomesPlugin extends JavaPlugin {
         this.inputListener.setHomeGUI(homeGUI);
 
         // Register TabCompleter
-        HomeTabCompleter tabCompleter = new HomeTabCompleter(homeManager);
+        HomeTabCompleter tabCompleter = new HomeTabCompleter(homeManager, this);
         getCommand("home").setTabCompleter(tabCompleter);
         getCommand("homes").setTabCompleter(tabCompleter);
         getCommand("sethome").setTabCompleter(tabCompleter);
@@ -73,8 +73,11 @@ public class HomesPlugin extends JavaPlugin {
         // We will update HomeTabCompleter to handle these new commands.
         getCommand("tpa").setTabCompleter(tabCompleter);
         getCommand("tpahere").setTabCompleter(tabCompleter);
+        getCommand("tpaccept").setTabCompleter(tabCompleter);
+        getCommand("tpdeny").setTabCompleter(tabCompleter);
         getCommand("tpcancel").setTabCompleter(tabCompleter);
         getCommand("tpaignore").setTabCompleter(tabCompleter);
+        getCommand("back").setTabCompleter(tabCompleter);
 
         getLogger().info("HomesPlugin が有効になりました！");
     }
@@ -199,28 +202,8 @@ public class HomesPlugin extends JavaPlugin {
                 return true;
             } 
             
-            if (homeName.contains(":")) {
-                String[] parts = homeName.split(":");
-                if (parts.length > 1) {
-                    org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(parts[0]);
-                    String targetHome = parts[1];
-                    
-                    // Check if public or has permission
-                    boolean isPublic = homeManager.isPublic(target.getUniqueId(), targetHome);
-                    boolean isAdmin = player.hasPermission("homes.admin");
-                    
-                    if (isPublic || isAdmin) {
-                        Location loc = homeManager.getHome(target.getUniqueId(), targetHome);
-                        if (loc != null) {
-                            teleportManager.teleport(player, loc);
-                            return true;
-                        }
-                    } else {
-                        player.sendMessage(getMessage("home-not-found").replace("{name}", homeName));
-                        return true;
-                    }
-                }
-            }
+            // Removed /home <player>:<home> functionality as requested.
+            // Use /vhome <player> instead.
 
             player.sendMessage(getMessage("home-not-found").replace("{name}", homeName));
             player.sendMessage(getMessage("use-gui-info"));

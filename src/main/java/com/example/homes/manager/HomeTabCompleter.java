@@ -13,12 +13,16 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
+import com.example.homes.HomesPlugin;
+
 public class HomeTabCompleter implements TabCompleter {
 
     private final HomeManager homeManager;
+    private final HomesPlugin plugin;
 
-    public HomeTabCompleter(HomeManager homeManager) {
+    public HomeTabCompleter(HomeManager homeManager, HomesPlugin plugin) {
         this.homeManager = homeManager;
+        this.plugin = plugin;
     }
 
     @Override
@@ -42,7 +46,7 @@ public class HomeTabCompleter implements TabCompleter {
             // /homes [list]
             if (cmdName.equals("homes")) {
                 completions.add("list");
-                // Removed player completions for /homes
+                completions.add("reload"); // Added reload suggestion
             }
             
             // /vhome <player>
@@ -59,6 +63,9 @@ public class HomeTabCompleter implements TabCompleter {
             
             // TPA Commands
             if (cmdName.equals("tpa") || cmdName.equals("tpahere") || cmdName.equals("tpcancel") || cmdName.equals("tpaignore")) {
+                if (!plugin.getConfig().getBoolean("settings.tpa.enabled", true)) {
+                    return Collections.emptyList();
+                }
                 for (Player p : player.getServer().getOnlinePlayers()) {
                     // Exclude self from TPA completion
                     if (!p.getUniqueId().equals(player.getUniqueId())) {
@@ -66,6 +73,19 @@ public class HomeTabCompleter implements TabCompleter {
                     }
                 }
                 // Do NOT include offline players for TPA
+            }
+            
+            if (cmdName.equals("tpaccept") || cmdName.equals("tpdeny")) {
+                if (!plugin.getConfig().getBoolean("settings.tpa.enabled", true)) {
+                    return Collections.emptyList();
+                }
+            }
+            
+            // /back
+            if (cmdName.equals("back")) {
+                if (!plugin.getConfig().getBoolean("settings.back.enabled", true)) {
+                    return Collections.emptyList();
+                }
             }
             
             // /sethome <name> - no suggestions usually, maybe "home"

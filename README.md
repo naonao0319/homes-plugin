@@ -36,7 +36,6 @@ This plugin allows players to set multiple homes, manage them via a GUI, share t
 | `/sethome <name>` | Set a home at your current location. | `homes.use` |
 | `/delhome <name>` | Delete a specific home. | `homes.use` |
 | `/home <name>` | Teleport to a specific home. | `homes.use` |
-| `/home <player>:<name>` | Teleport to another player's public home. | `homes.use` |
 | `/homes` | Open your home management GUI. | `homes.use` |
 | `/homes reload` | Reload the plugin configuration. | `homes.reload` |
 | `/vhome <player>` | Open another player's public home list. | `homes.use` |
@@ -117,7 +116,6 @@ Developed by **naonao**.
 | `/sethome <名前>` | 現在地をホームとして設定します。 | `homes.use` |
 | `/delhome <名前>` | 特定のホームを削除します。 | `homes.use` |
 | `/home <名前>` | 特定のホームにテレポートします。 | `homes.use` |
-| `/home <プレイヤー>:<名前>` | 他のプレイヤーの公開ホームにテレポートします。 | `homes.use` |
 | `/homes` | ホーム管理 GUI を開きます。 | `homes.use` |
 | `/homes reload` | プラグインの設定を再読み込みします。 | `homes.reload` |
 | `/vhome <プレイヤー>` | 他のプレイヤーの公開ホームリストを開きます。 | `homes.use` |
