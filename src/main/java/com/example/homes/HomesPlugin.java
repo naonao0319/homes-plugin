@@ -202,8 +202,8 @@ public class HomesPlugin extends JavaPlugin {
                 return true;
             } 
             
-            // Removed /home <player>:<home> functionality as requested.
-            // Use /vhome <player> instead.
+            // /home <player>:<home> 機能は削除されました。
+            // 代わりに /vhome <player> を使用してください。
 
             player.sendMessage(getMessage("home-not-found").replace("{name}", homeName));
             player.sendMessage(getMessage("use-gui-info"));
