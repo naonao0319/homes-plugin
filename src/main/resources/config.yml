@@ -122,3 +122,8 @@ messages:
   reload-success: "&a設定をリロードしました。"
   enter-name: "&aホームの名前を入力してください。"
   cancel-info: "&7キャンセルするには &c'cancel' &7と入力してください。"
+  usage-home: "&c使用法: /home <ホーム名>"
+  use-gui-info: "&e/homes コマンドでGUIからホームを選択できます。"
+  usage-sethome: "&c使用法: /sethome <名前>"
+  usage-delhome: "&c使用法: /delhome <名前>"
+  home-exists: "&cその名前のホームは既に存在します。"
