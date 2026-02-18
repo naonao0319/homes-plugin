@@ -75,7 +75,7 @@ public class HomeTabCompleter implements TabCompleter {
                 // Do NOT include offline players for TPA
             }
             
-            if (cmdName.equals("tpaccept") || cmdName.equals("tpdeny")) {
+            if (cmdName.equals("tpaccept") || cmdName.equals("tpdeny") || cmdName.equals("tpatoggle")) {
                 if (!plugin.getConfig().getBoolean("settings.tpa.enabled", true)) {
                     return Collections.emptyList();
                 }
