@@ -77,6 +77,7 @@ public class HomesPlugin extends JavaPlugin {
         getCommand("tpdeny").setTabCompleter(tabCompleter);
         getCommand("tpcancel").setTabCompleter(tabCompleter);
         getCommand("tpaignore").setTabCompleter(tabCompleter);
+        getCommand("tpatoggle").setTabCompleter(tabCompleter);
         getCommand("back").setTabCompleter(tabCompleter);
 
         getLogger().info("HomesPlugin が有効になりました！");
