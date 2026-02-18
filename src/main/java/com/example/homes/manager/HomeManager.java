@@ -1,6 +1,7 @@
 package com.example.homes.manager;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -179,5 +180,14 @@ public class HomeManager {
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             loadHomes(p.getUniqueId());
         }
+    }
+    
+    // Get list of names of players who have at least one public home (or any home? vhome checks public anyway)
+    // To be efficient, this should probably come from DB query or cache.
+    // For now, let's just return online players + cached offline players?
+    // Or query DB for "SELECT DISTINCT uuid FROM homes WHERE is_public = true"
+    // Let's implement a method in DatabaseManager to get players with public homes.
+    public List<String> getPlayersWithPublicHomes() {
+        return databaseManager.getPlayersWithPublicHomes();
     }
 }

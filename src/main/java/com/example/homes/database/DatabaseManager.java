@@ -4,11 +4,15 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 
 import com.example.homes.HomesPlugin;
 import com.zaxxer.hikari.HikariConfig;
@@ -67,6 +71,33 @@ public class DatabaseManager {
         config.setConnectionTimeout(10000); // 10 seconds
 
         dataSource = new HikariDataSource(config);
+    }
+
+    public List<String> getPlayersWithPublicHomes() {
+        List<String> players = new ArrayList<>();
+        // Query distinct player UUIDs who have at least one home
+        String sql = "SELECT DISTINCT player_uuid FROM player_homes"; 
+        
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                String uuidStr = rs.getString("player_uuid");
+                try {
+                    UUID uuid = UUID.fromString(uuidStr);
+                    OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
+                    if (op.getName() != null) {
+                        players.add(op.getName());
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Ignore invalid UUIDs
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return players;
     }
 
     private void createTable() {

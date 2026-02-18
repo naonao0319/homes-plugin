@@ -49,10 +49,19 @@ public class HomeTabCompleter implements TabCompleter {
             
             // /vhome <player>
             if (cmdName.equals("vhome")) {
+                // Online players
                 for (Player p : player.getServer().getOnlinePlayers()) {
                     completions.add(p.getName());
                 }
-                // Removing offline player loop to prevent lag on large servers
+                
+                // Offline players who have homes (Fetched from DB via HomeManager)
+                // This filters out "random players who joined once" and keeps "active players with homes"
+                List<String> offlineWithHomes = homeManager.getPlayersWithPublicHomes(); // Method name in HomeManager
+                for (String name : offlineWithHomes) {
+                    if (!completions.contains(name)) {
+                        completions.add(name);
+                    }
+                }
             }
             
             // TPA Commands
