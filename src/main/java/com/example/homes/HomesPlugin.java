@@ -18,6 +18,7 @@ import com.example.homes.manager.EconomyManager;
 import com.example.homes.manager.HomeManager;
 import com.example.homes.manager.HomeTabCompleter;
 import com.example.homes.manager.InputListener;
+import com.example.homes.manager.SkriptImportManager;
 import com.example.homes.manager.SoundManager;
 import com.example.homes.manager.TeleportManager;
 import com.example.homes.manager.TpaManager;
@@ -31,6 +32,7 @@ public class HomesPlugin extends JavaPlugin {
     private SoundManager soundManager;
     private EconomyManager economyManager;
     private TpaManager tpaManager;
+    private SkriptImportManager skriptImportManager;
     @SuppressWarnings("unused")
     private DataListener dataListener;
     @SuppressWarnings("unused")
@@ -55,6 +57,9 @@ public class HomesPlugin extends JavaPlugin {
         this.homeGUI = new HomeGUI(this, homeManager, teleportManager, soundManager, economyManager);
         this.dataListener = new DataListener(this, homeManager);
         this.deathListener = new DeathListener(this, tpaManager);
+        
+        // Initialize Import Manager
+        this.skriptImportManager = new SkriptImportManager(this, homeManager);
         
         // Link GUI and Input Listener
         this.homeGUI.setInputListener(inputListener);

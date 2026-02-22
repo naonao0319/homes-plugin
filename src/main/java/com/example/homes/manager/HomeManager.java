@@ -62,8 +62,10 @@ public class HomeManager {
     
     // Async set home
     public void setHome(Player player, String name, Location loc) {
-        UUID uuid = player.getUniqueId();
-        
+        setHomeDirectly(player.getUniqueId(), name, loc);
+    }
+    
+    public void setHomeDirectly(UUID uuid, String name, Location loc) {
         // Update cache immediately for responsiveness
         homeCache.computeIfAbsent(uuid, k -> new HashMap<>()).put(name, loc);
         
