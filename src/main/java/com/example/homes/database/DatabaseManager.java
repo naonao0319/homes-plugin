@@ -10,9 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.OfflinePlayer;
 
 import com.example.homes.HomesPlugin;
 import com.zaxxer.hikari.HikariConfig;
@@ -22,6 +20,7 @@ public class DatabaseManager {
 
     private final HomesPlugin plugin;
     private HikariDataSource dataSource;
+    private HikariConfig config;
 
     public DatabaseManager(HomesPlugin plugin) {
         this.plugin = plugin;
@@ -30,7 +29,7 @@ public class DatabaseManager {
     }
 
     private void setupDataSource() {
-        HikariConfig config = new HikariConfig();
+        config = new HikariConfig();
         String type = plugin.getConfig().getString("database.type", "h2").toLowerCase();
 
         if (type.equals("mariadb") || type.equals("mysql")) {
@@ -75,18 +74,15 @@ public class DatabaseManager {
 
     public List<String> getPlayersWithPublicHomes() {
         List<String> players = new ArrayList<>();
-        // Query distinct player UUIDs who have at least one home
-        String sql = "SELECT DISTINCT player_uuid FROM player_homes"; 
-        
+        String sql = "SELECT DISTINCT player_uuid FROM player_homes WHERE is_public = true";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-            
             while (rs.next()) {
                 String uuidStr = rs.getString("player_uuid");
                 try {
                     UUID uuid = UUID.fromString(uuidStr);
-                    OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
+                    org.bukkit.OfflinePlayer op = org.bukkit.Bukkit.getOfflinePlayer(uuid);
                     if (op.getName() != null) {
                         players.add(op.getName());
                     }
@@ -215,6 +211,19 @@ public class DatabaseManager {
             stmt.setBoolean(1, isPublic);
             stmt.setString(2, uuid.toString());
             stmt.setString(3, name);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void renameHome(UUID uuid, String oldName, String newName) {
+        String sql = "UPDATE player_homes SET home_name = ? WHERE player_uuid = ? AND home_name = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, newName);
+            stmt.setString(2, uuid.toString());
+            stmt.setString(3, oldName);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

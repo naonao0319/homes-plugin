@@ -1,6 +1,5 @@
 package com.example.homes.manager;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,11 +44,11 @@ public class HomeManager {
             @Override
             public void run() {
                 Map<String, Location> homes = databaseManager.getHomes(uuid);
-                homeCache.put(uuid, homes);
+                homeCache.put(uuid, new ConcurrentHashMap<>(homes));
                 
                 // Bulk fetch public status to avoid N+1 queries
                 Map<String, Boolean> publicStatus = databaseManager.getHomePublicStatus(uuid);
-                publicCache.put(uuid, publicStatus);
+                publicCache.put(uuid, new ConcurrentHashMap<>(publicStatus));
             }
         }.runTaskAsynchronously(plugin);
     }
@@ -67,7 +66,8 @@ public class HomeManager {
     
     public void setHomeDirectly(UUID uuid, String name, Location loc) {
         // Update cache immediately for responsiveness
-        homeCache.computeIfAbsent(uuid, k -> new HashMap<>()).put(name, loc);
+        // Use ConcurrentHashMap for thread safety
+        homeCache.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>()).put(name, loc);
         
         // Save to DB asynchronously
         new BukkitRunnable() {
@@ -79,11 +79,37 @@ public class HomeManager {
     }
     
     public void setPublic(UUID uuid, String name, boolean isPublic) {
-        publicCache.computeIfAbsent(uuid, k -> new HashMap<>()).put(name, isPublic);
+        publicCache.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>()).put(name, isPublic);
         new BukkitRunnable() {
             @Override
             public void run() {
                 databaseManager.updatePublic(uuid, name, isPublic);
+            }
+        }.runTaskAsynchronously(plugin);
+    }
+    
+    public void renameHome(UUID uuid, String oldName, String newName) {
+        // Update Cache
+        if (homeCache.containsKey(uuid)) {
+            Map<String, Location> homes = homeCache.get(uuid);
+            if (homes.containsKey(oldName)) {
+                Location loc = homes.remove(oldName);
+                homes.put(newName, loc);
+            }
+        }
+        if (publicCache.containsKey(uuid)) {
+            Map<String, Boolean> status = publicCache.get(uuid);
+            if (status.containsKey(oldName)) {
+                Boolean isPublic = status.remove(oldName);
+                status.put(newName, isPublic);
+            }
+        }
+        
+        // Update DB
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                databaseManager.renameHome(uuid, oldName, newName);
             }
         }.runTaskAsynchronously(plugin);
     }
@@ -137,8 +163,9 @@ public class HomeManager {
     }
     
     public Map<String, Location> getHomes(UUID uuid) {
-        if (homeCache.containsKey(uuid)) {
-            return new HashMap<>(homeCache.get(uuid));
+        Map<String, Location> homes = homeCache.get(uuid);
+        if (homes != null) {
+            return new ConcurrentHashMap<>(homes);
         }
         // Fallback
         return databaseManager.getHomes(uuid);

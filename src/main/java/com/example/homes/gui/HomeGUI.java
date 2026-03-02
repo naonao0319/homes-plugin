@@ -21,6 +21,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -44,6 +45,7 @@ public class HomeGUI implements Listener {
     private static final int GUI_SIZE_LARGE = 54;
     private final Set<UUID> deleteModePlayers = new HashSet<>();
     private final Set<UUID> publicModePlayers = new HashSet<>();
+    private final Set<UUID> renameModePlayers = new HashSet<>();
     
     // Pagination state
     private final Map<UUID, Integer> currentStartIndex = new HashMap<>();
@@ -75,14 +77,17 @@ public class HomeGUI implements Listener {
         
         boolean deleteMode = deleteModePlayers.contains(viewer.getUniqueId());
         boolean publicMode = publicModePlayers.contains(viewer.getUniqueId());
+        boolean renameMode = renameModePlayers.contains(viewer.getUniqueId());
         
         String titleKey = "gui.title";
         if (deleteMode) titleKey = "gui.delete-mode-title";
         else if (publicMode) titleKey = "gui.public-mode-title";
+        else if (renameMode) titleKey = "gui.rename-mode-title";
         
         String defaultTitle = "ホーム一覧";
         if (deleteMode) defaultTitle = "&c削除モード (クリックで削除)";
         else if (publicMode) defaultTitle = "&b公開設定モード (クリックで切替)";
+        else if (renameMode) defaultTitle = "&eリネームモード (クリックで名前変更)";
         
         if (!isOwner) {
             String name = target.getName() != null ? target.getName() : "Unknown";
@@ -175,6 +180,42 @@ public class HomeGUI implements Listener {
                 deleteItem.setItemMeta(deleteMeta);
             }
             inv.setItem(8, deleteItem);
+        }
+        
+        // Slot 1: Rename Mode Button (Next to Anvil) - Only for Owner
+        if (isOwner) {
+            ItemStack renameItem;
+            if (renameMode) {
+                renameItem = new ItemStack(Material.NAME_TAG);
+                renameItem.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
+            } else {
+                renameItem = new ItemStack(Material.NAME_TAG);
+            }
+            ItemMeta renameMeta = renameItem.getItemMeta();
+            if (renameMeta != null) {
+                renameMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                String nameKey = renameMode ? "gui.rename-button.name-on" : "gui.rename-button.name-off";
+                String defaultName = renameMode ? "&eリネームモード: ON" : "&aリネームモード: OFF";
+                renameMeta.setDisplayName(ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString(nameKey, defaultName)));
+                
+                List<String> lore = new ArrayList<>();
+                String loreKey = renameMode ? "gui.rename-button.lore-on" : "gui.rename-button.lore-off";
+                
+                List<String> defaultLore = new ArrayList<>();
+                if (renameMode) defaultLore.add("&7クリックしてモードを終了");
+                else defaultLore.add("&7クリックしてリネームモードに切替");
+                
+                List<String> configLore = plugin.getConfig().getStringList(loreKey);
+                if (configLore.isEmpty()) configLore = defaultLore;
+                
+                for (String line : configLore) {
+                    lore.add(ChatColor.translateAlternateColorCodes('&', line));
+                }
+                renameMeta.setLore(lore);
+                renameItem.setItemMeta(renameMeta);
+            }
+            // Slot 1: Rename Mode (Next to Anvil)
+            inv.setItem(1, renameItem);
         }
         
         // Slot 7: Public Mode Button (Next to Delete) - Only for Owner
@@ -318,6 +359,8 @@ public class HomeGUI implements Listener {
                         actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-delete");
                     } else if (publicMode) {
                          actionLore.add(ChatColor.YELLOW + "クリックして公開/非公開を切り替え");
+                    } else if (renameMode) {
+                         actionLore.add(ChatColor.YELLOW + "クリックして名前を変更");
                     } else {
                         actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-teleport");
                         // Show cost if not owner and cost enabled
@@ -368,20 +411,29 @@ public class HomeGUI implements Listener {
         // Check both titles (Normal and Delete Mode) - AND match flexible titles if possible
         String title = event.getView().getTitle();
         // Simple check
-        if (!title.contains("ホーム") && !title.contains("削除") && !title.contains("公開")) {
+        if (!title.contains("ホーム") && !title.contains("削除") && !title.contains("公開") && !title.contains("リネーム")) {
              return;
         }
         // Better: Check if title equals config strings
         String normalTitle = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.title", "ホーム一覧"));
         String deleteTitle = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.delete-mode-title", "&c削除モード (クリックで削除)"));
         String publicTitle = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.public-mode-title", "&b公開設定モード (クリックで切替)"));
+        String renameTitle = ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("gui.rename-mode-title", "&eリネームモード (クリックで名前変更)"));
         
         // Allow other titles for Admin view (e.g. "User's Homes")
-        boolean isMyGui = title.equals(normalTitle) || title.equals(deleteTitle) || title.equals(publicTitle) || title.contains("のホーム"); 
+        boolean isMyGui = title.equals(normalTitle) || title.equals(deleteTitle) || title.equals(publicTitle) || title.equals(renameTitle) || title.contains("のホーム"); 
         
         if (!isMyGui) return;
 
         event.setCancelled(true); // Prevent taking items
+
+        if (event.getClickedInventory() != event.getView().getTopInventory()) {
+             // Clicked bottom inventory, allow unless shift-clicking into top
+             if (event.isShiftClick()) {
+                 event.setCancelled(true);
+             }
+             return;
+        }
 
         if (event.getCurrentItem() == null || event.getCurrentItem().getType() == Material.AIR) {
             return;
@@ -444,6 +496,22 @@ public class HomeGUI implements Listener {
             return;
         }
 
+        // Rename Mode Button at Slot 1
+        if (slot == 1 && isOwner) {
+            if (renameModePlayers.contains(viewer.getUniqueId())) {
+                renameModePlayers.remove(viewer.getUniqueId());
+                soundManager.play(viewer, "gui-click");
+            } else {
+                renameModePlayers.add(viewer.getUniqueId());
+                // Disable other modes
+                deleteModePlayers.remove(viewer.getUniqueId());
+                publicModePlayers.remove(viewer.getUniqueId());
+                soundManager.play(viewer, "gui-click");
+            }
+            open(viewer, target); 
+            return;
+        }
+
         // Delete Mode Button at Slot 8
         if (slot == 8) {
             if (deleteModePlayers.contains(viewer.getUniqueId())) {
@@ -453,6 +521,7 @@ public class HomeGUI implements Listener {
                 deleteModePlayers.add(viewer.getUniqueId());
                 // Disable other modes
                 publicModePlayers.remove(viewer.getUniqueId());
+                renameModePlayers.remove(viewer.getUniqueId());
                 soundManager.play(viewer, "gui-click");
             }
             open(viewer, target); 
@@ -468,6 +537,7 @@ public class HomeGUI implements Listener {
                 publicModePlayers.add(viewer.getUniqueId());
                 // Disable other modes
                 deleteModePlayers.remove(viewer.getUniqueId());
+                renameModePlayers.remove(viewer.getUniqueId());
                 soundManager.play(viewer, "gui-click");
             }
             open(viewer, target); 
@@ -525,6 +595,11 @@ public class HomeGUI implements Listener {
                         // Delete Mode Logic (existing)
                          new ConfirmGUI(plugin, homeManager, this, homeName, soundManager, target.getUniqueId()).open(viewer);
                          soundManager.play(viewer, "gui-click");
+                    } else if (renameModePlayers.contains(viewer.getUniqueId()) && isOwner) {
+                        // Rename Logic
+                        if (inputListener != null) {
+                            inputListener.startRename(viewer, homeName);
+                        }
                     } else if (publicModePlayers.contains(viewer.getUniqueId()) && isOwner) {
                         // Public Mode Logic
                         boolean isPublic = homeManager.isPublic(target.getUniqueId(), homeName);
@@ -573,10 +648,19 @@ public class HomeGUI implements Listener {
     }
     
     @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        String title = event.getView().getTitle();
+        if (title.contains("ホーム") || title.contains("削除") || title.contains("公開") || title.contains("リネーム")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     public void onClose(InventoryCloseEvent event) {
         if (event.getReason() != InventoryCloseEvent.Reason.OPEN_NEW) {
             deleteModePlayers.remove(event.getPlayer().getUniqueId());
             publicModePlayers.remove(event.getPlayer().getUniqueId());
+            renameModePlayers.remove(event.getPlayer().getUniqueId());
             
             // Clear pagination data
             currentStartIndex.remove(event.getPlayer().getUniqueId());

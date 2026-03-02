@@ -18,6 +18,7 @@ public class InputListener implements Listener {
     private final HomeManager homeManager;
     private final SoundManager soundManager;
     private final Set<UUID> creatingHome = new HashSet<>();
+    private final java.util.Map<UUID, String> renamingHome = new java.util.HashMap<>();
     private HomeGUI homeGUI; 
 
     public InputListener(HomesPlugin plugin, HomeManager homeManager, SoundManager soundManager) {
@@ -44,9 +45,50 @@ public class InputListener implements Listener {
         soundManager.play(player, "gui-click"); // Or some start sound
     }
 
+    public void startRename(Player player, String oldName) {
+        renamingHome.put(player.getUniqueId(), oldName);
+        player.sendMessage(plugin.getMessage("enter-name"));
+        player.sendMessage(plugin.getMessage("cancel-info"));
+        player.closeInventory();
+        soundManager.play(player, "gui-click");
+    }
+
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
+
+        if (renamingHome.containsKey(player.getUniqueId())) {
+            event.setCancelled(true);
+            String message = event.getMessage();
+
+            if (message.equalsIgnoreCase("cancel")) {
+                renamingHome.remove(player.getUniqueId());
+                player.sendMessage(plugin.getMessage("creation-cancelled"));
+                soundManager.play(player, "gui-click");
+                return;
+            }
+
+            if (homeManager.hasHome(player, message)) {
+                player.sendMessage(plugin.getMessage("home-exists"));
+                soundManager.play(player, "teleport-fail");
+                return;
+            }
+
+            String oldName = renamingHome.remove(player.getUniqueId());
+            
+            // Run on main thread
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                homeManager.renameHome(player.getUniqueId(), oldName, message);
+                player.sendMessage(plugin.getMessage("home-renamed").replace("{old}", oldName).replace("{new}", message));
+                soundManager.play(player, "teleport-success");
+                
+                if (homeGUI != null) {
+                    homeGUI.open(player);
+                }
+            });
+            return;
+        }
+
         if (!creatingHome.contains(player.getUniqueId())) {
             return;
         }

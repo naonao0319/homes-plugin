@@ -46,6 +46,9 @@ public class HomesPlugin extends JavaPlugin {
     public void onEnable() {
         // Save default config
         saveDefaultConfig();
+        // Update config with new keys if missing
+        getConfig().options().copyDefaults(true);
+        saveConfig();
 
         this.tpaManager = new TpaManager(this);
         
@@ -234,7 +237,7 @@ public class HomesPlugin extends JavaPlugin {
                 }
                 return true;
             }
-            
+
             // /homes <player> 機能は削除されました。代わりに /vhome <player> を使用してください。
             if (args.length > 0 && !args[0].equalsIgnoreCase("reload")) {
                  player.sendMessage(ChatColor.YELLOW + "他のプレイヤーのホームを見るには " + ChatColor.GOLD + "/vhome <プレイヤー名>" + ChatColor.YELLOW + " を使用してください。");

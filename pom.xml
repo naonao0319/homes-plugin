@@ -5,7 +5,7 @@
 
     <groupId>com.example</groupId>
     <artifactId>HomesPlugin</artifactId>
-    <version>1.6.19</version>
+    <version>1.6.34</version>
     <packaging>jar</packaging>
 
     <name>HomesPlugin</name>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
-            <version>5.1.0</version>
+            <version>6.2.0</version>
             <scope>compile</scope>
         </dependency>
         <!-- MariaDB Driver (Server usually provides this, but good to have) -->
@@ -93,7 +93,53 @@
     </dependencies>
 
     <build>
+        <finalName>${project.name}-${app.version.major}.${app.version.minor}.${app.build.number}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>3.0.2</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                        <configuration>
+                            <scripts>
+                                <script><![CDATA[
+                                    def file = new File(project.basedir, "version.properties")
+                                    def props = new Properties()
+                                    if (file.exists()) {
+                                        file.withInputStream { props.load(it) }
+                                        def buildNum = props.getProperty("app.build.number").toInteger() + 1
+                                        props.setProperty("app.build.number", buildNum.toString())
+                                        file.withOutputStream { props.store(it, null) }
+                                        project.properties.setProperty("app.build.number", buildNum.toString())
+                                        project.properties.setProperty("app.version.major", props.getProperty("app.version.major"))
+                                        project.properties.setProperty("app.version.minor", props.getProperty("app.version.minor"))
+                                        println "Build number incremented to " + buildNum
+                                    }
+                                ]]></script>
+                            </scripts>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.groovy</groupId>
+                        <artifactId>groovy-all</artifactId>
+                        <version>4.0.15</version>
+                        <type>pom</type>
+                    </dependency>
+                </dependencies>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -115,17 +161,22 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <finalName>home-plugin.${project.version}</finalName>
-                            <relocations>
-                                <relocation>
-                                    <pattern>com.zaxxer.hikari</pattern>
-                                    <shadedPattern>com.example.homes.lib.hikari</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.h2</pattern>
-                                    <shadedPattern>com.example.homes.lib.h2</shadedPattern>
-                                </relocation>
-                            </relocations>
+                            <!-- <finalName>home-plugin.${project.version}</finalName> Removed to use standard naming -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <minimizeJar>false</minimizeJar>
+                            <!-- Removing artifactSet to shade all compile dependencies -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/versions/9/module-info.class</exclude>
+                                        <exclude>module-info.class</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

@@ -45,6 +45,14 @@ gui:
     name: "&aホームを作成する"
     lore:
       - "&7クリックして名前を入力"
+  rename-button:
+    name-off: "&aリネームモード: OFF"
+    name-on: "&eリネームモード: ON"
+    lore-off:
+      - "&7クリックしてONにする"
+    lore-on:
+      - "&7クリックしてOFFにする"
+      - "&eホームをクリックするとチャットで新しい名前を入力できます"
   delete-button:
     name-off: "&a削除モード: OFF"
     name-on: "&c削除モード: ON"
@@ -54,8 +62,8 @@ gui:
       - "&7クリックしてOFFにする"
       - "&cホームをクリックすると削除確認画面へ移動します！"
   home-icon:
-    name: "&6{name}"
-    default-material: RED_BED
+    name: "&b{name}"
+    default-material: LIGHT_BLUE_BED
     # ワールドごとのアイコン設定 (ワールド名: マテリアル)
     world-icons:
       world_nether: CRIMSON_FUNGUS
@@ -83,6 +91,7 @@ messages:
   prefix: "&6[Homes] &r"
   no-permission: "&c権限がありません。"
   home-set: "&aホーム &e{name} &aを設定しました。"
+  home-created: "&aホーム &e{name} &aを作成しました。"
   home-deleted: "&cホーム &e{name} &cを削除しました。"
   home-not-found: "&cそのホームは見つかりません。"
   teleport-success: "&aテレポートしました！"
@@ -125,6 +134,9 @@ messages:
   reload-success: "&a設定をリロードしました。"
   enter-name: "&aホームの名前を入力してください。"
   cancel-info: "&7キャンセルするには &c'cancel' &7と入力してください。"
+  home-renamed: "&aホーム名を {old} から {new} に変更しました。"
+  rename-cancelled: "&eリネームをキャンセルしました。"
+  creation-cancelled: "&eホーム作成をキャンセルしました。"
   usage-home: "&c使用法: /home <ホーム名>"
   use-gui-info: "&e/homes コマンドでGUIからホームを選択できます。"
   usage-sethome: "&c使用法: /sethome <名前>"
