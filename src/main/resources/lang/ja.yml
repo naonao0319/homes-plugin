@@ -33,9 +33,12 @@ home-list-entry: "&e- {name}&7 ({world}: {x}, {y}, {z})"
 home-list-entry-simple: "&e- {name}"
 
 # /vhome (他プレイヤーのホーム閲覧)
-usage-vhome: "&c使用法: /vhome <プレイヤー名>"
+usage-vhome: "&c使用法: /vhome [プレイヤー名]"
 vhome-other-info: "&e他のプレイヤーのホームを見るには &6/vhome <プレイヤー名>&e を使用してください。"
 vhome-view-public: "&a{player}の公開ホームを表示します。"
+vhome-no-public: "&c公開されているホームはありません。"
+public-home-earned: "&a公開ホームが利用され、{amount} を受け取りました。"
+public-home-earned-offline: "&aオフライン中に公開ホームで {amount} 稼ぎました。"
 
 # TPA メッセージ
 tpa-sent: "&a{player} にテレポートリクエストを送信しました。"
@@ -107,6 +110,7 @@ update-available-link-hover: "&7Modrinthで開く"
 gui-create-count: "&e現在の作成数: {current} / {max}"
 gui-create-cost: "&6費用: {cost}"
 gui-teleport-cost: "&6テレポート費用: {cost}"
+gui-visit-public-cost: "&6テレポート費用: {cost} &7(持ち主に入ります)"
 gui-status-public: "&a公開中"
 gui-status-private: "&c非公開"
 gui-status-favorite: "&6★ お気に入り"

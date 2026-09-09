@@ -69,6 +69,9 @@ economy:
     make-public: 5000.0
     tpa: 0.0          # /tpa・/tpahere の料金（承認時にリクエスト送信者が支払う）
     back: 0.0         # /back の料金
+    # 他人の公開ホームへのテレポート費用。支払額はそのまま持ち主へ渡る。
+    # 未設定の場合は teleport 代を使う。持ち主がオフラインならログイン時にまとめて入金・通知する。
+    visit-public: 10.0
 
 database:
   # h2, mariadb, or mysql
@@ -214,6 +217,27 @@ gui:
       name: "&e{player}"
       lore:
         - "&7クリックして選択"
+  vhome:
+    title: "&a公開ホーム一覧"
+    title-page-suffix: " [{page}/{total}]"
+    border-material: LIGHT_BLUE_STAINED_GLASS_PANE
+    refresh-button:
+      material: EMERALD_BLOCK
+      name: "&a更新"
+      lore:
+        - "&7公開ホーム一覧を再取得"
+    prev-button:
+      material: ARROW
+      name: "&a← 前のページ"
+    next-button:
+      material: ARROW
+      name: "&a次のページ →"
+    head:
+      name: "&e{player} &7- &b{name}"
+      lore:
+        - "&7ワールド: {world}"
+        - "&7X: {x} Y: {y} Z: {z}"
+        - "&eクリックしてテレポート"
   tpa-action:
     title: "&a{player}にリクエスト"
     border-material: BLUE_STAINED_GLASS_PANE

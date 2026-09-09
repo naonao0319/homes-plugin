@@ -4,27 +4,33 @@ import org.bukkit.Location;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
+import com.example.homes.manager.TeleportPayment;
+
 /** 危険な場所へのテレポート確認 GUI の識別と、テレポート先の座標を保持する。 */
 public final class UnsafeTeleportGuiHolder implements InventoryHolder {
 
     private final Location target;
-    /** 確認前に徴収済みの費用キー (例: "teleport")。キャンセル時に払い戻す。無課金なら null。 */
-    private final String refundCostKey;
+    /** 確認前に徴収済みの費用と、成功時の公開ホーム分配。キャンセル時は払い戻しのみ。 */
+    private final TeleportPayment payment;
     /** はい/いいえで解決済みか。閉じる(Esc等)で二重に払い戻さないためのフラグ。 */
     private boolean resolved;
     private Inventory inventory;
 
-    public UnsafeTeleportGuiHolder(Location target, String refundCostKey) {
+    public UnsafeTeleportGuiHolder(Location target, TeleportPayment payment) {
         this.target = target;
-        this.refundCostKey = refundCostKey;
+        this.payment = payment == null ? TeleportPayment.none() : payment;
     }
 
     public Location getTarget() {
         return target;
     }
 
+    public TeleportPayment getPayment() {
+        return payment;
+    }
+
     public String getRefundCostKey() {
-        return refundCostKey;
+        return payment.refundCostKey();
     }
 
     public boolean isResolved() {

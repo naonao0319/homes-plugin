@@ -22,6 +22,7 @@ import com.example.homes.command.VHomeCommand;
 import com.example.homes.database.DatabaseManager;
 import com.example.homes.gui.ConfirmGUI;
 import com.example.homes.gui.HomeGUI;
+import com.example.homes.gui.PublicHomeGUI;
 import com.example.homes.gui.TpaActionGUI;
 import com.example.homes.gui.TpaGUI;
 import com.example.homes.gui.UnsafeTeleportConfirmGUI;
@@ -33,6 +34,8 @@ import com.example.homes.manager.HomeTabCompleter;
 import com.example.homes.manager.InputListener;
 import com.example.homes.manager.LanguageManager;
 import com.example.homes.manager.OnlinePlayerSnapshotCache;
+import com.example.homes.manager.PublicHomeEarningsManager;
+import com.example.homes.manager.PublicHomeVisitService;
 import com.example.homes.manager.SessionCleanupListener;
 import com.example.homes.manager.SessionManager;
 import com.example.homes.manager.SoundManager;
@@ -53,6 +56,7 @@ public class HomesPlugin extends JavaPlugin {
     private SessionManager sessionManager;
     private TeleportManager teleportManager;
     private HomeGUI homeGUI;
+    private PublicHomeGUI publicHomeGUI;
     private ConfirmGUI confirmGUI;
     private UnsafeTeleportConfirmGUI unsafeTeleportConfirmGUI;
     private TpaGUI tpaGUI;
@@ -60,6 +64,8 @@ public class HomesPlugin extends JavaPlugin {
     private InputListener inputListener;
     private SoundManager soundManager;
     private EconomyManager economyManager;
+    private PublicHomeEarningsManager publicHomeEarnings;
+    private PublicHomeVisitService publicHomeVisitService;
     private TpaManager tpaManager;
     private SpawnManager spawnManager;
     private DataListener dataListener;
@@ -84,6 +90,18 @@ public class HomesPlugin extends JavaPlugin {
 
     public EconomyManager getEconomyManager() {
         return economyManager;
+    }
+
+    public HomeManager getHomeManager() {
+        return homeManager;
+    }
+
+    public PublicHomeEarningsManager getPublicHomeEarnings() {
+        return publicHomeEarnings;
+    }
+
+    public PublicHomeVisitService getPublicHomeVisitService() {
+        return publicHomeVisitService;
     }
 
     public SpawnManager getSpawnManager() {
@@ -119,11 +137,15 @@ public class HomesPlugin extends JavaPlugin {
         this.sessionManager = new SessionManager();
         this.soundManager = new SoundManager(this);
         this.economyManager = new EconomyManager(this);
-        this.homeManager = new HomeManager(this, new DatabaseManager(this));
+        DatabaseManager databaseManager = new DatabaseManager(this);
+        this.homeManager = new HomeManager(this, databaseManager);
+        this.publicHomeEarnings = new PublicHomeEarningsManager(this, databaseManager);
         this.teleportManager = new TeleportManager(this, soundManager, tpaManager);
         this.spawnManager = new SpawnManager(this, teleportManager);
+        this.publicHomeVisitService = new PublicHomeVisitService(this, homeManager, economyManager, teleportManager);
         this.inputListener = new InputListener(this, homeManager, sessionManager, soundManager, economyManager);
-        this.homeGUI = new HomeGUI(this, homeManager, sessionManager, teleportManager, soundManager, economyManager, spawnManager, tpaManager);
+        this.homeGUI = new HomeGUI(this, homeManager, sessionManager, soundManager, economyManager, spawnManager, tpaManager, publicHomeVisitService);
+        this.publicHomeGUI = new PublicHomeGUI(this, homeManager, publicHomeVisitService, soundManager, economyManager);
         this.confirmGUI = new ConfirmGUI(this, homeManager, homeGUI, soundManager, sessionManager);
         this.homeGUI.setConfirmGUI(confirmGUI);
         this.unsafeTeleportConfirmGUI = new UnsafeTeleportConfirmGUI(this, teleportManager, soundManager, economyManager);
@@ -131,7 +153,7 @@ public class HomesPlugin extends JavaPlugin {
         this.tpaGUI = new TpaGUI(this);
         this.tpaActionGUI = new TpaActionGUI(this, tpaGUI);
         this.tpaGUI.setTpaActionGUI(tpaActionGUI);
-        this.dataListener = new DataListener(homeManager);
+        this.dataListener = new DataListener(homeManager, publicHomeEarnings);
         this.deathListener = new DeathListener(this, tpaManager);
         this.sessionCleanupListener = new SessionCleanupListener(sessionManager, tpaManager);
         this.onlinePlayerSnapshotCache = new OnlinePlayerSnapshotCache(this);
@@ -141,6 +163,7 @@ public class HomesPlugin extends JavaPlugin {
         this.inputListener.setHomeGUI(homeGUI);
 
         getServer().getPluginManager().registerEvents(homeGUI, this);
+        getServer().getPluginManager().registerEvents(publicHomeGUI, this);
         getServer().getPluginManager().registerEvents(confirmGUI, this);
         getServer().getPluginManager().registerEvents(unsafeTeleportConfirmGUI, this);
         getServer().getPluginManager().registerEvents(inputListener, this);
@@ -172,7 +195,7 @@ public class HomesPlugin extends JavaPlugin {
         setExecutor("homes", new HomesCommand(this, homeManager, homeGUI));
         setExecutor("sethome", new SetHomeCommand(this, homeManager, economyManager));
         setExecutor("delhome", new DelHomeCommand(this, homeManager, soundManager));
-        setExecutor("vhome", new VHomeCommand(this, homeManager, homeGUI));
+        setExecutor("vhome", new VHomeCommand(this, homeManager, homeGUI, publicHomeGUI));
         configureFeatureCommands();
 
         HomeTabCompleter tabCompleter = new HomeTabCompleter(

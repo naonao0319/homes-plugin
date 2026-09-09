@@ -115,6 +115,23 @@ class EconomyBypassTest {
     }
 
     @Test
+    void visitPublicFallsBackToTeleportCostWhenUnset() {
+        plugin.getConfig().set("economy.cost.visit-public", null);
+        plugin.getConfig().set("economy.cost.teleport", 10.0);
+
+        assertEquals(10.0, plugin.getEconomyManager().getCost("visit-public"), 0.001);
+    }
+
+    @Test
+    void visitPublicUsesDedicatedConfigKeyWhenSet() {
+        plugin.getConfig().set("economy.cost.visit-public", 10.0);
+        plugin.getConfig().set("economy.cost.teleport", 50.0);
+
+        assertEquals(10.0, plugin.getEconomyManager().getCost("visit-public"), 0.001);
+        assertEquals(50.0, plugin.getEconomyManager().getCost("teleport"), 0.001);
+    }
+
+    @Test
     void tpaAndBackCostsUseTheirOwnConfigKeys() {
         PlayerMock player = server.addPlayer();
         economy.setBalance(player, 1000);

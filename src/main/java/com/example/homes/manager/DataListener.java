@@ -8,14 +8,19 @@ import org.bukkit.event.player.PlayerQuitEvent;
 public class DataListener implements Listener {
 
     private final HomeManager homeManager;
+    private final PublicHomeEarningsManager earningsManager;
 
-    public DataListener(HomeManager homeManager) {
+    public DataListener(HomeManager homeManager, PublicHomeEarningsManager earningsManager) {
         this.homeManager = homeManager;
+        this.earningsManager = earningsManager;
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         homeManager.loadHomes(event.getPlayer().getUniqueId());
+        if (earningsManager != null) {
+            earningsManager.settleOnJoin(event.getPlayer());
+        }
     }
 
     @EventHandler

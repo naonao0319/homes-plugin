@@ -44,19 +44,39 @@ public class TeleportManager {
     }
 
     public void teleport(Player player, Location target) {
-        teleportToLocation(player, target, false, DEFAULT_SUCCESS_KEY, "teleport");
+        teleportToLocation(player, target, false, DEFAULT_SUCCESS_KEY, TeleportPayment.refundable("teleport"));
+    }
+
+    public void teleport(Player player, Location target, TeleportPayment payment) {
+        teleportToLocation(player, target, false, DEFAULT_SUCCESS_KEY, payment == null ? TeleportPayment.none() : payment);
     }
 
     public void teleport(Player player, Location target, boolean allowWater) {
-        teleportToLocation(player, target, allowWater, DEFAULT_SUCCESS_KEY, null);
+        teleportToLocation(player, target, allowWater, DEFAULT_SUCCESS_KEY, TeleportPayment.none());
     }
 
     public void teleport(Player player, Location target, boolean allowWater, String successMessageKey) {
-        teleportToLocation(player, target, allowWater, successMessageKey, null);
+        teleportToLocation(player, target, allowWater, successMessageKey, TeleportPayment.none());
+    }
+
+    /**
+     * 安全地点探索やブロック中心へのスナップをせず、保存座標へそのままテレポートする。
+     * /spawn のように設置位置を厳密に再現したいときに使う。
+     */
+    public void teleportExact(Player player, Location target, String successMessageKey) {
+        if (target == null || target.getWorld() == null) {
+            player.sendMessage(plugin.msg("teleport-target-not-found"));
+            soundManager.play(player, "teleport-fail");
+            return;
+        }
+        Location destination = target.clone();
+        startWarmup(player, () ->
+                teleportAsync(player, destination, successMessageKey, TeleportPayment.none()),
+                TeleportPayment.none());
     }
 
     public void teleport(Player player, Player target) {
-        startWarmup(player, () -> teleportToPlayer(player, target));
+        startWarmup(player, () -> teleportToPlayer(player, target), TeleportPayment.none());
     }
 
     private void teleportToLocation(
@@ -64,11 +84,12 @@ public class TeleportManager {
             Location target,
             boolean allowWater,
             String successMessageKey,
-            String refundCostKey) {
+            TeleportPayment payment) {
+        TeleportPayment pay = payment == null ? TeleportPayment.none() : payment;
         if (target == null || target.getWorld() == null) {
             player.sendMessage(plugin.msg("teleport-target-not-found"));
             soundManager.play(player, "teleport-fail");
-            plugin.getEconomyManager().refund(player, refundCostKey);
+            plugin.getEconomyManager().refund(player, pay.refundCostKey());
             return;
         }
 
@@ -76,11 +97,11 @@ public class TeleportManager {
         findSafeLocationAsync(requested, allowWater).thenAccept(safe ->
                 plugin.getFoliaScheduler().runEntity(player, () -> {
                     if (safe == null) {
-                        handleUnsafeDestination(player, requested, refundCostKey);
+                        handleUnsafeDestination(player, requested, pay);
                         return;
                     }
                     startWarmup(player, () ->
-                            teleportAsync(player, safe, successMessageKey, refundCostKey));
+                            teleportAsync(player, safe, successMessageKey, pay), pay);
                 }));
     }
 
@@ -105,17 +126,17 @@ public class TeleportManager {
         }
     }
 
-    private void handleUnsafeDestination(Player player, Location target, String refundCostKey) {
+    private void handleUnsafeDestination(Player player, Location target, TeleportPayment payment) {
         if (plugin.getConfig().getBoolean("settings.teleport.confirm-unsafe", true)
                 && unsafeConfirmGUI != null) {
             soundManager.play(player, "teleport-fail");
-            unsafeConfirmGUI.open(player, target, refundCostKey);
+            unsafeConfirmGUI.open(player, target, payment);
             return;
         }
 
         player.sendMessage(plugin.msg("teleport-unsafe"));
         soundManager.play(player, "teleport-fail");
-        plugin.getEconomyManager().refund(player, refundCostKey);
+        plugin.getEconomyManager().refund(player, payment.refundCostKey());
     }
 
     private void notifyMissingTarget(Player player) {
@@ -125,9 +146,15 @@ public class TeleportManager {
     }
 
     public void teleportUnsafeConfirmed(Player player, Location target) {
+        teleportUnsafeConfirmed(player, target, TeleportPayment.none());
+    }
+
+    public void teleportUnsafeConfirmed(Player player, Location target, TeleportPayment payment) {
+        TeleportPayment pay = payment == null ? TeleportPayment.none() : payment;
         if (target == null || target.getWorld() == null) {
             player.sendMessage(plugin.msg("teleport-target-not-found"));
             soundManager.play(player, "teleport-fail");
+            plugin.getEconomyManager().refund(player, pay.refundCostKey());
             return;
         }
 
@@ -135,30 +162,44 @@ public class TeleportManager {
         exact.setX(target.getBlockX() + 0.5);
         exact.setZ(target.getBlockZ() + 0.5);
         startWarmup(player, () ->
-                teleportAsync(player, exact, DEFAULT_SUCCESS_KEY, null));
+                teleportAsync(player, exact, DEFAULT_SUCCESS_KEY, pay), pay);
     }
 
     private void teleportAsync(
             Player player,
             Location destination,
             String successMessageKey,
-            String refundCostKey) {
-        player.teleportAsync(destination).whenComplete((success, error) ->
+            TeleportPayment payment) {
+        TeleportPayment pay = payment == null ? TeleportPayment.none() : payment;
+        CompletableFuture<Boolean> future;
+        try {
+            future = player.teleportAsync(destination);
+        } catch (RuntimeException ex) {
+            // MockBukkit など teleportAsync 未実装環境では同期テレポートへ落とす
+            boolean ok = player.teleport(destination);
+            future = CompletableFuture.completedFuture(ok);
+        }
+        future.whenComplete((success, error) ->
                 plugin.getFoliaScheduler().runEntity(player, () -> {
                     if (error != null || !Boolean.TRUE.equals(success)) {
                         player.sendMessage(plugin.msg("teleport-target-not-found"));
                         soundManager.play(player, "teleport-fail");
-                        plugin.getEconomyManager().refund(player, refundCostKey);
+                        plugin.getEconomyManager().refund(player, pay.refundCostKey());
                         return;
                     }
 
                     playTeleportEffect(player);
                     player.sendMessage(plugin.msg(successMessageKey));
                     soundManager.play(player, "teleport-success");
+                    if (pay.hasPayout() && !player.getUniqueId().equals(pay.payoutOwner())
+                            && plugin.getPublicHomeEarnings() != null) {
+                        plugin.getPublicHomeEarnings().credit(pay.payoutOwner(), pay.payoutAmount());
+                    }
                 }));
     }
 
-    private void startWarmup(Player player, Runnable onComplete) {
+    private void startWarmup(Player player, Runnable onComplete, TeleportPayment payment) {
+        TeleportPayment pay = payment == null ? TeleportPayment.none() : payment;
         int delay = player.hasPermission("homes.bypass.teleportdelay")
                 ? 0
                 : plugin.getConfig().getInt("settings.teleport.delay", 3);
@@ -182,6 +223,7 @@ public class TeleportManager {
                 task -> {
                     if (!player.isOnline()) {
                         hideBossBar(player, bossBar);
+                        plugin.getEconomyManager().refund(player, pay.refundCostKey());
                         task.cancel();
                         return;
                     }
@@ -191,6 +233,7 @@ public class TeleportManager {
                         hideBossBar(player, bossBar);
                         player.sendMessage(plugin.msg("teleport-cancelled"));
                         soundManager.play(player, "teleport-fail");
+                        plugin.getEconomyManager().refund(player, pay.refundCostKey());
                         task.cancel();
                         return;
                     }
@@ -284,6 +327,11 @@ public class TeleportManager {
         int searchRadius = plugin.getConfig().getInt("settings.teleport.safe-search.radius", 2);
         int verticalRange = plugin.getConfig().getInt("settings.teleport.safe-search.vertical", 3);
         List<Candidate> candidates = new ArrayList<>();
+        // 元のマスを先頭にする。半径ループは dx=-radius から始まるため、
+        // 安全な設置地点でも右上/北西へ 2 マスずれることがあった。
+        candidates.add(new Candidate(
+                0,
+                new Location(world, base.getX(), baseY, base.getZ(), base.getYaw(), base.getPitch())));
 
         for (int dy = 0; dy <= verticalRange; dy++) {
             int yUp = baseY + dy;
@@ -291,12 +339,12 @@ public class TeleportManager {
             if (yUp >= minY && yUp <= maxY) {
                 addCandidates(
                         candidates, world, baseX, yUp, baseZ, searchRadius,
-                        base.getYaw(), base.getPitch());
+                        base.getYaw(), base.getPitch(), dy == 0);
             }
             if (dy != 0 && yDown >= minY && yDown <= maxY) {
                 addCandidates(
                         candidates, world, baseX, yDown, baseZ, searchRadius,
-                        base.getYaw(), base.getPitch());
+                        base.getYaw(), base.getPitch(), false);
             }
         }
 
@@ -311,9 +359,13 @@ public class TeleportManager {
             int z,
             int radius,
             float yaw,
-            float pitch) {
+            float pitch,
+            boolean skipOrigin) {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
+                if (skipOrigin && dx == 0 && dz == 0) {
+                    continue;
+                }
                 Location location = new Location(
                         world, x + dx + 0.5, y, z + dz + 0.5, yaw, pitch);
                 candidates.add(new Candidate(candidates.size(), location));
@@ -379,7 +431,7 @@ public class TeleportManager {
         Block head = world.getBlockAt(x, y + 1, z);
         Block ground = world.getBlockAt(x, y - 1, z);
 
-        if (!feet.isPassable() || !head.isPassable()) {
+        if (!isPassable(feet) || !isPassable(head)) {
             return false;
         }
         if (isHazard(feet.getType(), allowWater) || isHazard(head.getType(), allowWater)) {
@@ -396,6 +448,15 @@ public class TeleportManager {
 
         Block aboveHead = head.getRelative(BlockFace.UP);
         return !aboveHead.getType().isSolid();
+    }
+
+    private boolean isPassable(Block block) {
+        try {
+            return block.isPassable();
+        } catch (RuntimeException ignored) {
+            Material type = block.getType();
+            return type.isEmpty() || !type.isSolid();
+        }
     }
 
     private boolean isHazard(Material type, boolean allowWater) {

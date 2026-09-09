@@ -22,6 +22,7 @@ import com.example.homes.HomesPlugin;
 import com.example.homes.database.DataAccessException;
 import com.example.homes.database.HomeData;
 import com.example.homes.database.HomeRepository;
+import com.example.homes.database.PublicHomeRecord;
 
 class HomeManagerRepositoryTest {
 
@@ -53,6 +54,20 @@ class HomeManagerRepositoryTest {
         @Override
         public List<UUID> getPlayerUuidsWithPublicHomes() {
             return List.of();
+        }
+
+        @Override
+        public List<PublicHomeRecord> getAllPublicHomes() {
+            return List.of();
+        }
+
+        @Override
+        public void addPendingEarnings(UUID uuid, double amount) {
+        }
+
+        @Override
+        public double takePendingEarnings(UUID uuid) {
+            return 0;
         }
 
         @Override

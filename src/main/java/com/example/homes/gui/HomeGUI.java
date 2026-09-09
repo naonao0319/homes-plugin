@@ -27,10 +27,10 @@ import com.example.homes.gui.holder.HomeGuiHolder;
 import com.example.homes.manager.EconomyManager;
 import com.example.homes.manager.HomeManager;
 import com.example.homes.manager.InputListener;
+import com.example.homes.manager.PublicHomeVisitService;
 import com.example.homes.manager.SessionManager;
 import com.example.homes.manager.SoundManager;
 import com.example.homes.manager.SpawnManager;
-import com.example.homes.manager.TeleportManager;
 import com.example.homes.manager.TpaManager;
 
 import net.kyori.adventure.text.Component;
@@ -60,24 +60,24 @@ public class HomeGUI implements Listener {
 
     private final HomesPlugin plugin;
     private final HomeManager homeManager;
-    private final TeleportManager teleportManager;
     private final SoundManager soundManager;
     private final EconomyManager economyManager;
     private final SpawnManager spawnManager;
     private final TpaManager tpaManager;
     private final SessionManager sessionManager;
+    private final PublicHomeVisitService visitService;
     private InputListener inputListener;
     private ConfirmGUI confirmGUI;
 
-    public HomeGUI(HomesPlugin plugin, HomeManager homeManager, SessionManager sessionManager, TeleportManager teleportManager, SoundManager soundManager, EconomyManager economyManager, SpawnManager spawnManager, TpaManager tpaManager) {
+    public HomeGUI(HomesPlugin plugin, HomeManager homeManager, SessionManager sessionManager, SoundManager soundManager, EconomyManager economyManager, SpawnManager spawnManager, TpaManager tpaManager, PublicHomeVisitService visitService) {
         this.plugin = plugin;
         this.homeManager = homeManager;
         this.sessionManager = sessionManager;
-        this.teleportManager = teleportManager;
         this.soundManager = soundManager;
         this.economyManager = economyManager;
         this.spawnManager = spawnManager;
         this.tpaManager = tpaManager;
+        this.visitService = visitService;
     }
 
     public void setInputListener(InputListener inputListener) {
@@ -387,9 +387,14 @@ public class HomeGUI implements Listener {
         } else {
             actionLore = plugin.getConfig().getStringList("gui.home-icon.lore-teleport");
             if (economyManager != null && economyManager.hasEconomy()) {
-                double cost = plugin.getConfig().getDouble("economy.cost.teleport", 0);
+                boolean publicVisit = !isOwner && homeManager.isPublic(target.getUniqueId(), homeName);
+                String costKey = publicVisit ? "visit-public" : "teleport";
+                double cost = economyManager.getCost(costKey);
                 if (cost > 0) {
-                    lore.add(lang("gui-teleport-cost", "&6テレポート費用: {cost}").replace("{cost}", economyManager.format(cost)));
+                    String costLine = publicVisit
+                            ? lang("gui-visit-public-cost", "&6テレポート費用: {cost} &7(持ち主に入ります)")
+                            : lang("gui-teleport-cost", "&6テレポート費用: {cost}");
+                    lore.add(costLine.replace("{cost}", economyManager.format(cost)));
                 }
             }
         }
@@ -573,13 +578,9 @@ public class HomeGUI implements Listener {
             soundManager.play(viewer, "gui-click");
             open(viewer, target);
         } else {
-            if (!economyManager.charge(viewer, "teleport")) {
-                return;
+            if (visitService.visit(viewer, target.getUniqueId(), homeName)) {
+                viewer.closeInventory();
             }
-
-            viewer.closeInventory();
-            Location loc = homeManager.getHome(target.getUniqueId(), homeName);
-            teleportManager.teleport(viewer, loc);
         }
     }
 

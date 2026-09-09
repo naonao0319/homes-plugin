@@ -19,8 +19,8 @@ commands:
     description: ホームを削除する
     usage: /delhome <名前>
   vhome:
-    description: 他のプレイヤーの公開ホームを訪問する
-    usage: /vhome <プレイヤー名>
+    description: 公開ホーム一覧を開く。プレイヤー名を指定するとその人の公開ホームを開く
+    usage: /vhome [プレイヤー名]
   tpa:
     description: テレポートリクエストを送信する
     usage: /tpa <プレイヤー名>

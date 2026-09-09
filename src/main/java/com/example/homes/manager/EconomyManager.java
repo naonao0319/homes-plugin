@@ -61,6 +61,29 @@ public class EconomyManager {
     }
 
     /**
+     * config の economy.cost.&lt;costKey&gt; に設定された費用。
+     * visit-public が未設定なら teleport 代をそのまま使う（なければ 10）。
+     */
+    public double getCost(String costKey) {
+        if (costKey == null) return 0;
+        if ("visit-public".equals(costKey) && !plugin.getConfig().isSet("economy.cost.visit-public")) {
+            return plugin.getConfig().getDouble("economy.cost.teleport", 10.0);
+        }
+        double fallback = "visit-public".equals(costKey) ? 10.0 : 0.0;
+        return plugin.getConfig().getDouble("economy.cost." + costKey, fallback);
+    }
+
+    /**
+     * {@link #charge(Player, String)} が実際に徴収する額。無料（経済無効・bypass・費用 0 以下）なら 0。
+     */
+    public double chargedAmount(Player player, String costKey) {
+        if (!hasEconomy()) return 0;
+        if (player != null && player.hasPermission("homes.bypass.economy")) return 0;
+        double cost = getCost(costKey);
+        return cost > 0 ? cost : 0;
+    }
+
+    /**
      * config の economy.cost.&lt;costKey&gt; に設定された費用を徴収する。
      * 経済が無効・費用 0 以下なら何もせず成功扱い。
      * 残高不足のときはメッセージを送って false、徴収できたら支払いメッセージを送って true を返す。
@@ -69,7 +92,7 @@ public class EconomyManager {
         if (!hasEconomy()) return true;
         // homes.bypass.economy 保持者 (既定で OP) は利用料金が無料
         if (player.hasPermission("homes.bypass.economy")) return true;
-        double cost = plugin.getConfig().getDouble("economy.cost." + costKey, 0);
+        double cost = getCost(costKey);
         if (cost <= 0) return true;
         if (!hasMoney(player, cost)) {
             player.sendMessage(plugin.msg("insufficient-funds", "cost", format(cost)));
@@ -89,7 +112,7 @@ public class EconomyManager {
         if (costKey == null) return;
         if (!hasEconomy()) return;
         if (player.hasPermission("homes.bypass.economy")) return;
-        double cost = plugin.getConfig().getDouble("economy.cost." + costKey, 0);
+        double cost = getCost(costKey);
         if (cost <= 0) return;
         deposit(player, cost);
         player.sendMessage(plugin.msg("refund-success", "cost", format(cost)));

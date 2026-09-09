@@ -105,6 +105,105 @@ public class DatabaseManager implements HomeRepository {
         return players;
     }
 
+    @Override
+    public List<PublicHomeRecord> getAllPublicHomes() {
+        List<PublicHomeRecord> homes = new ArrayList<>();
+        String sql = "SELECT player_uuid, home_name, world_name, x, y, z, yaw, pitch, memo "
+                + "FROM player_homes WHERE is_public = true";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                String uuidStr = rs.getString("player_uuid");
+                UUID uuid;
+                try {
+                    uuid = UUID.fromString(uuidStr);
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                homes.add(new PublicHomeRecord(
+                        uuid,
+                        rs.getString("home_name"),
+                        rs.getString("world_name"),
+                        rs.getDouble("x"),
+                        rs.getDouble("y"),
+                        rs.getDouble("z"),
+                        rs.getFloat("yaw"),
+                        rs.getFloat("pitch"),
+                        rs.getString("memo")));
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load public homes", e);
+        }
+        return homes;
+    }
+
+    @Override
+    public void addPendingEarnings(UUID uuid, double amount) {
+        if (uuid == null || amount <= 0 || dataSource == null || dataSource.isClosed()) {
+            return;
+        }
+        String sql = "INSERT INTO public_home_earnings (player_uuid, amount) VALUES (?, ?) "
+                + "ON DUPLICATE KEY UPDATE amount = amount + ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uuid.toString());
+            stmt.setDouble(2, amount);
+            stmt.setDouble(3, amount);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to add pending public home earnings", e);
+        }
+    }
+
+    @Override
+    public double takePendingEarnings(UUID uuid) {
+        if (uuid == null || dataSource == null || dataSource.isClosed()) {
+            return 0;
+        }
+        String selectSql = "SELECT amount FROM public_home_earnings WHERE player_uuid = ?";
+        String deleteSql = "DELETE FROM public_home_earnings WHERE player_uuid = ?";
+        try (Connection conn = dataSource.getConnection()) {
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                double amount = 0;
+                try (PreparedStatement stmt = conn.prepareStatement(selectSql)) {
+                    stmt.setString(1, uuid.toString());
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            amount = rs.getDouble("amount");
+                        }
+                    }
+                }
+                if (amount > 0) {
+                    try (PreparedStatement stmt = conn.prepareStatement(deleteSql)) {
+                        stmt.setString(1, uuid.toString());
+                        stmt.executeUpdate();
+                    }
+                }
+                conn.commit();
+                return amount;
+            } catch (SQLException e) {
+                SQLException txEx = new SQLException("Failed to take pending public home earnings", e);
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    plugin.getLogger().log(Level.WARNING, "Rollback failed", rollbackEx);
+                    txEx.addSuppressed(rollbackEx);
+                }
+                throw txEx;
+            } finally {
+                conn.setAutoCommit(previousAutoCommit);
+            }
+        } catch (SQLException e) {
+            if (dataSource == null || dataSource.isClosed()) {
+                return 0;
+            }
+            throw new DataAccessException("Failed to take pending public home earnings", e);
+        }
+    }
+
     private void createTable() {
         String sql = "CREATE TABLE IF NOT EXISTS player_homes (" +
                 "id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -140,6 +239,14 @@ public class DatabaseManager implements HomeRepository {
                 if (desiredMemoLen > 128) desiredMemoLen = 128;
                 addColumnIfNotExists(conn, "memo", "VARCHAR(" + desiredMemoLen + ")");
                 ensureMemoColumnLength(conn, desiredMemoLen);
+
+                String earningsSql = "CREATE TABLE IF NOT EXISTS public_home_earnings (" +
+                        "player_uuid VARCHAR(36) PRIMARY KEY," +
+                        "amount DOUBLE NOT NULL DEFAULT 0" +
+                        ");";
+                try (PreparedStatement stmt = conn.prepareStatement(earningsSql)) {
+                    stmt.executeUpdate();
+                }
 
                 conn.commit();
             } catch (SQLException e) {
@@ -245,7 +352,7 @@ public class DatabaseManager implements HomeRepository {
         }
         String sql = "INSERT INTO player_homes (player_uuid, home_name, world_name, x, y, z, yaw, pitch, is_public) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE world_name=?, x=?, y=?, z=?, yaw=?, pitch=?, is_public=?";
+                "ON DUPLICATE KEY UPDATE world_name=?, x=?, y=?, z=?, yaw=?, pitch=?";
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -266,7 +373,6 @@ public class DatabaseManager implements HomeRepository {
             stmt.setDouble(13, z);
             stmt.setFloat(14, yaw);
             stmt.setFloat(15, pitch);
-            stmt.setBoolean(16, isPublic);
 
             stmt.executeUpdate();
         } catch (SQLException e) {

@@ -21,6 +21,7 @@ import com.example.homes.gui.holder.UnsafeTeleportGuiHolder;
 import com.example.homes.manager.EconomyManager;
 import com.example.homes.manager.SoundManager;
 import com.example.homes.manager.TeleportManager;
+import com.example.homes.manager.TeleportPayment;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -53,10 +54,10 @@ public class UnsafeTeleportConfirmGUI implements Listener {
 
     /**
      * 危険な場所へのテレポート確認 GUI を開く。
-     * @param refundCostKey 確認前に徴収済みの費用キー (例: "teleport")。キャンセル時に払い戻す。無課金なら null。
+     * @param payment 確認前に徴収済みの費用と、成功時の公開ホーム分配。キャンセル時は払い戻しのみ。
      */
-    public void open(Player viewer, Location target, String refundCostKey) {
-        UnsafeTeleportGuiHolder holder = new UnsafeTeleportGuiHolder(target, refundCostKey);
+    public void open(Player viewer, Location target, TeleportPayment payment) {
+        UnsafeTeleportGuiHolder holder = new UnsafeTeleportGuiHolder(target, payment);
         Component title = colorize(plugin.getConfig().getString("gui.confirm-teleport.title", "&c危険な場所へテレポート？"));
         Inventory inv = Bukkit.createInventory(holder, 27, title);
         holder.setInventory(inv);
@@ -110,7 +111,7 @@ public class UnsafeTeleportConfirmGUI implements Listener {
             Location target = holder.getTarget();
             holder.setResolved(true); // テレポート確定。閉じても払い戻さない
             player.closeInventory();
-            teleportManager.teleportUnsafeConfirmed(player, target);
+            teleportManager.teleportUnsafeConfirmed(player, target, holder.getPayment());
         } else if (slot == SLOT_NO) {
             holder.setResolved(true); // ここで払い戻すので、閉じる側で二重に払い戻さない
             economyManager.refund(player, holder.getRefundCostKey());

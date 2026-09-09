@@ -1,14 +1,11 @@
-2.0.6
-## Folia and Paper 26.2 Support
+2.0.7
+## Public home visits and spawn accuracy
 
-- Added native Folia support using Paper's Entity, Region, Global Region, and Async schedulers.
-- Reworked teleports to use `teleportAsync()` and region-owned safe-location checks.
-- Made TPA requests, GUIs, tab completion, warmups, shared state, and database callbacks safe for Folia's region threading model.
-- Added `folia-supported: true` and publishes this version for both Paper and Folia on Modrinth.
-- Compiles against the stable Paper 26.2 API while retaining `api-version: 1.21` for compatible 1.21.x servers.
+- Visiting another player's public home now pays the teleport fee to the home owner instead of deleting the money. The amount is `economy.cost.visit-public` (default 10; falls back to `teleport` if unset).
+- If the owner is offline, earnings are stored and paid with a chat summary the next time they join.
+- `/vhome` with no arguments opens a GUI of every public home, using player heads via the Mojang Skin API.
+- `/spawn` now teleports to the exact stored coordinates (no 2-block safe-search offset). Regular home teleports also prefer the original block first.
 
 ## Validation
 
-- 65 automated tests passed.
-- Paper 26.2 compilation and shaded JAR packaging passed.
-- The official Folia 26.2 server build is not available yet, so runtime validation used the latest compatible MockBukkit API and Paper/Folia scheduler contracts.
+- Automated tests covering public-home payouts, offline earnings, the `/vhome` browser, and exact spawn teleport.

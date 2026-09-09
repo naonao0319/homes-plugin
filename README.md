@@ -17,7 +17,8 @@ This plugin allows players to set multiple homes, manage them via a GUI, share t
     *   Delete homes with `/delhome <name>`.
 *   **GUI Interface**:
     *   Manage homes intuitively using a chest GUI via `/homes`.
-    *   Visit other players' public homes using `/vhome <player>`.
+    *   Browse every public home with `/vhome`, or open one player's public homes with `/vhome <player>`.
+    *   Visiting a public home pays the teleport fee to the home owner (held until they next log in if they are offline).
 *   **TPA System (Teleport Request)**:
     *   Send teleport requests to other players.
     *   Supports `/tpa` (Teleport to player) and `/tpahere` (Teleport player to you).
@@ -42,6 +43,7 @@ This plugin allows players to set multiple homes, manage them via a GUI, share t
 | `/home <name>` | Teleport to a specific home. | — |
 | `/homes` | Open your home management GUI. | — |
 | `/homes reload` | Reload the plugin configuration. | `homes.reload` |
+| `/vhome` | Open a GUI of all public homes (player heads). | — |
 | `/vhome <player>` | Open another player's public home list. | — |
 | `/tpa <player>` | Request to teleport to another player. | — |
 | `/tpahere <player>` | Request another player to teleport to you. | — |
@@ -125,7 +127,8 @@ Developed by **naonao**.
     *   `/delhome <名前>` でホームを削除。
 *   **GUI操作**:
     *   `/homes` でGUIを開き、クリック操作でホーム一覧を確認・テレポート可能。
-    *   他人の公開ホームへの訪問機能 (`/vhome`)。
+    *   他人の公開ホームへの訪問機能 (`/vhome` で一覧、`/vhome <プレイヤー>` で個人)。
+    *   公開ホームへのテレポート代は持ち主に入り、オフラインならログイン時にまとめて通知されます。
 *   **TPA (テレポートリクエスト)**:
     *   プレイヤー間でのテレポート申請・承認機能。
     *   `/tpa` (相手の場所へ行く) と `/tpahere` (相手を呼ぶ) に対応。
@@ -150,7 +153,8 @@ Developed by **naonao**.
 | `/home <名前>` | 特定のホームにテレポートします。 | — |
 | `/homes` | ホーム管理 GUI を開きます。 | — |
 | `/homes reload` | プラグインの設定を再読み込みします。 | `homes.reload` |
-| `/vhome <プレイヤー>` | 他のプレイヤーの公開ホームリストを開きます。 | — |
+| `/vhome` | 公開ホーム一覧 GUI を開きます（持ち主の頭アイコン）。 | — |
+| `/vhome <プレイヤー>` | 指定プレイヤーの公開ホームリストを開きます。 | — |
 | `/tpa <プレイヤー>` | 相手に自分のテレポートリクエストを送ります（相手の場所へ行く）。 | — |
 | `/tpahere <プレイヤー>` | 相手を自分の場所に呼ぶリクエストを送ります（カモン）。 | — |
 | `/tpaccept` | 届いているリクエストを承認します。 | — |

@@ -23,6 +23,12 @@ public interface HomeRepository {
 
     List<UUID> getPlayerUuidsWithPublicHomes();
 
+    List<PublicHomeRecord> getAllPublicHomes();
+
+    void addPendingEarnings(UUID uuid, double amount);
+
+    double takePendingEarnings(UUID uuid);
+
     void setHome(UUID uuid, String name, String worldName, double x, double y, double z, float yaw, float pitch, boolean isPublic);
 
     void updatePublic(UUID uuid, String name, boolean isPublic);

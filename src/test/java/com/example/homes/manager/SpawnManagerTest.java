@@ -66,6 +66,27 @@ class SpawnManagerTest {
     }
 
     @Test
+    void spawnTeleportsToExactStoredCoordinates() {
+        World world = server.addSimpleWorld("world");
+        PlayerMock player = server.addPlayer();
+        Location spawn = new Location(world, 12.5, 70.0, -4.5, 90.0f, 10.0f);
+        plugin.getSpawnManager().setSpawn(spawn);
+        player.teleport(new Location(world, 0.5, 65.0, 0.5, 0f, 0f));
+        drain(player);
+
+        player.performCommand("spawn");
+        server.getScheduler().waitAsyncTasksFinished();
+        server.getScheduler().performTicks(5);
+
+        Location loc = player.getLocation();
+        assertEquals(12.5, loc.getX(), 0.001, "spawn must not be shifted horizontally");
+        assertEquals(70.0, loc.getY(), 0.001, "spawn must not be shifted vertically");
+        assertEquals(-4.5, loc.getZ(), 0.001, "spawn must not be shifted horizontally");
+        assertEquals(90.0f, loc.getYaw(), 0.001f);
+        assertEquals(10.0f, loc.getPitch(), 0.001f);
+    }
+
+    @Test
     void spawnWithoutSavedLocationInformsPlayer() {
         PlayerMock player = server.addPlayer();
         drain(player);

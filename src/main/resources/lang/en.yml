@@ -34,9 +34,12 @@ home-list-entry: "&e- {name}&7 ({world}: {x}, {y}, {z})"
 home-list-entry-simple: "&e- {name}"
 
 # /vhome (viewing other players' homes)
-usage-vhome: "&cUsage: /vhome <player>"
+usage-vhome: "&cUsage: /vhome [player]"
 vhome-other-info: "&eTo view another player's homes, use &6/vhome <player>&e."
 vhome-view-public: "&aShowing {player}'s public homes."
+vhome-no-public: "&cThere are no public homes."
+public-home-earned: "&aSomeone visited your public home. You received {amount}."
+public-home-earned-offline: "&aWhile you were offline, your public homes earned {amount}."
 
 # TPA messages
 tpa-sent: "&aSent a teleport request to {player}."
@@ -114,6 +117,7 @@ update-available-link-hover: "&7Open on Modrinth"
 gui-create-count: "&eHomes created: {current} / {max}"
 gui-create-cost: "&6Cost: {cost}"
 gui-teleport-cost: "&6Teleport cost: {cost}"
+gui-visit-public-cost: "&6Teleport cost: {cost} &7(paid to the owner)"
 gui-status-public: "&aPublic"
 gui-status-private: "&cPrivate"
 gui-status-favorite: "&6* Favorite"

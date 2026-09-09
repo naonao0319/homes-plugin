@@ -2,6 +2,7 @@ package com.example.homes.manager;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import org.bukkit.Location;
@@ -20,6 +22,7 @@ import org.bukkit.permissions.PermissionAttachmentInfo;
 import com.example.homes.HomesPlugin;
 import com.example.homes.database.HomeData;
 import com.example.homes.database.HomeRepository;
+import com.example.homes.database.PublicHomeRecord;
 
 public class HomeManager {
 
@@ -43,6 +46,7 @@ public class HomeManager {
     private final Map<UUID, Map<String, HomeRecord>> cache = new ConcurrentHashMap<>();
     private final Set<UUID> loaded = ConcurrentHashMap.newKeySet();
     private final Map<UUID, CompletableFuture<Void>> loading = new ConcurrentHashMap<>();
+    private final Map<UUID, CompletableFuture<Void>> writeTail = new ConcurrentHashMap<>();
     private volatile List<String> cachedPlayersWithPublicHomes = Collections.emptyList();
     private volatile Map<String, UUID> cachedPublicHomeNameToUuid = Collections.emptyMap();
 
@@ -60,20 +64,29 @@ public class HomeManager {
      * 操作したプレイヤーがオンラインなら保存失敗を通知する。
      */
     private void runWriteAsync(UUID actorUuid, String description, Runnable write) {
-        plugin.getFoliaScheduler().runAsync(() -> {
-            try {
-                write.run();
-            } catch (RuntimeException e) {
-                plugin.getLogger().log(Level.SEVERE, "DB write failed: " + description, e);
-                plugin.getFoliaScheduler().runGlobal(() -> {
-                    Player actor = plugin.getServer().getPlayer(actorUuid);
-                    if (actor != null) {
-                        plugin.getFoliaScheduler().runEntity(
-                                actor,
-                                () -> actor.sendMessage(plugin.msg("save-failed")));
-                    }
-                });
-            }
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        writeTail.compute(actorUuid, (id, previous) -> {
+            CompletableFuture<Void> start = previous == null
+                    ? CompletableFuture.completedFuture(null)
+                    : previous;
+            start.whenComplete((ignored, error) -> plugin.getFoliaScheduler().runAsync(() -> {
+                try {
+                    write.run();
+                    done.complete(null);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().log(Level.SEVERE, "DB write failed: " + description, e);
+                    done.completeExceptionally(e);
+                    plugin.getFoliaScheduler().runGlobal(() -> {
+                        Player actor = plugin.getServer().getPlayer(actorUuid);
+                        if (actor != null) {
+                            plugin.getFoliaScheduler().runEntity(
+                                    actor,
+                                    () -> actor.sendMessage(plugin.msg("save-failed")));
+                        }
+                    });
+                }
+            }));
+            return done;
         });
     }
 
@@ -396,6 +409,43 @@ public class HomeManager {
         OfflinePlayer op = plugin.getServer().getOfflinePlayer(name);
         if (op.hasPlayedBefore()) return op.getUniqueId();
         return null;
+    }
+
+    /**
+     * 全公開ホームを DB から非同期取得し、メイン/グローバルスレッドで callback する。
+     * 名前は OfflinePlayer キャッシュから解決する。
+     */
+    public void fetchAllPublicHomes(Consumer<List<PublicHomeView>> callback) {
+        plugin.getFoliaScheduler().runAsync(() -> {
+            List<PublicHomeRecord> rows;
+            try {
+                rows = repository.getAllPublicHomes();
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to fetch public homes", e);
+                rows = List.of();
+            }
+            List<PublicHomeRecord> records = rows;
+            plugin.getFoliaScheduler().runGlobal(() -> {
+                List<PublicHomeView> views = new ArrayList<>(records.size());
+                for (PublicHomeRecord row : records) {
+                    OfflinePlayer op = plugin.getServer().getOfflinePlayer(row.ownerUuid());
+                    String ownerName = op.getName() != null ? op.getName() : "Unknown";
+                    views.add(new PublicHomeView(
+                            row.ownerUuid(),
+                            ownerName,
+                            row.homeName(),
+                            row.worldName(),
+                            row.x(),
+                            row.y(),
+                            row.z(),
+                            row.memo()));
+                }
+                views.sort(Comparator
+                        .comparing(PublicHomeView::ownerName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(PublicHomeView::homeName, String.CASE_INSENSITIVE_ORDER));
+                callback.accept(views);
+            });
+        });
     }
 
     public CompletableFuture<Map<String, Location>> getHomesAsync(UUID uuid) {

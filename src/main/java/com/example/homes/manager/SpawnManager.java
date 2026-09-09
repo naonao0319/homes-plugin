@@ -69,6 +69,6 @@ public class SpawnManager {
             return;
         }
 
-        teleportManager.teleport(player, spawn, false, "spawn-success");
+        teleportManager.teleportExact(player, spawn, "spawn-success");
     }
 }

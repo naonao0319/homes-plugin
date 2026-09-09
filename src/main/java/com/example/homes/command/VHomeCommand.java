@@ -8,24 +8,27 @@ import org.bukkit.entity.Player;
 
 import com.example.homes.HomesPlugin;
 import com.example.homes.gui.HomeGUI;
+import com.example.homes.gui.PublicHomeGUI;
 import com.example.homes.manager.HomeManager;
 
-/** /vhome &lt;プレイヤー&gt; - 他プレイヤーの公開ホーム一覧を開く。 */
+/** /vhome [プレイヤー] - 引数なしで公開ホーム一覧、指定時は対象の公開ホームを開く。 */
 public class VHomeCommand extends PlayerCommandBase {
 
     private final HomeManager homeManager;
     private final HomeGUI homeGUI;
+    private final PublicHomeGUI publicHomeGUI;
 
-    public VHomeCommand(HomesPlugin plugin, HomeManager homeManager, HomeGUI homeGUI) {
+    public VHomeCommand(HomesPlugin plugin, HomeManager homeManager, HomeGUI homeGUI, PublicHomeGUI publicHomeGUI) {
         super(plugin);
         this.homeManager = homeManager;
         this.homeGUI = homeGUI;
+        this.publicHomeGUI = publicHomeGUI;
     }
 
     @Override
     protected boolean execute(Player player, String[] args) {
         if (args.length == 0) {
-            player.sendMessage(plugin.msg("usage-vhome"));
+            publicHomeGUI.open(player);
             return true;
         }
 
