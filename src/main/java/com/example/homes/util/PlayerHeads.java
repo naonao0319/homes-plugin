@@ -1,6 +1,8 @@
 package com.example.homes.util;
 
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -10,11 +12,13 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.profile.PlayerProfile;
 
 /**
- * プレイヤーヘッドを Mojang Skin API (PlayerProfile) で組み立てる。
- * 同一リージョンにいるオンラインプレイヤーはライブプロファイルを使い、
- * Geyser 等で差し込まれたスキンも拾う。それ以外は UUID から Skin API で解決する。
+ * プレイヤーヘッドを、すでにテクスチャを持っているプロフィールだけで組み立てる。
+ * UUID だけの未完成プロフィールを頭に付けると Paper が Mojang へ問い合わせ、
+ * /vhome のように人数分並ぶと 429 の警告が連発する。
  */
 public final class PlayerHeads {
+
+    private static final ConcurrentMap<UUID, PlayerProfile> TEXTURE_CACHE = new ConcurrentHashMap<>();
 
     private PlayerHeads() {
     }
@@ -33,21 +37,73 @@ public final class PlayerHeads {
         if (meta == null || uuid == null) {
             return;
         }
-        try {
-            PlayerProfile profile = profileOf(uuid, name);
-            if (profile != null) {
-                meta.setOwnerProfile(profile);
-                return;
-            }
-        } catch (RuntimeException ignored) {
+        applyProfile(meta, resolveTexturedProfile(uuid, name));
+    }
+
+    public static void applySkin(SkullMeta meta, PlayerProfile profile) {
+        if (meta == null || profile == null) {
+            return;
+        }
+        if (hasTextures(profile)) {
+            remember(profile);
+            applyProfile(meta, copy(profile));
+            return;
+        }
+        UUID uuid = uuidOf(profile);
+        if (uuid != null) {
+            applySkin(meta, uuid, nameOf(profile));
+        }
+    }
+
+    public static void remember(Player player) {
+        if (player == null) {
+            return;
         }
         try {
-            meta.setOwningPlayer(Bukkit.getOfflinePlayer(uuid));
+            remember(player.getPlayerProfile());
         } catch (RuntimeException ignored) {
         }
     }
 
-    public static PlayerProfile profileOf(UUID uuid, String name) {
+    public static void remember(PlayerProfile profile) {
+        if (!hasTextures(profile)) {
+            return;
+        }
+        UUID uuid = uuidOf(profile);
+        if (uuid == null) {
+            return;
+        }
+        PlayerProfile copy = copy(profile);
+        if (copy != null) {
+            TEXTURE_CACHE.put(uuid, copy);
+        }
+    }
+
+    public static void clearCache() {
+        TEXTURE_CACHE.clear();
+    }
+
+    private static PlayerProfile resolveTexturedProfile(UUID uuid, String name) {
+        PlayerProfile cached = TEXTURE_CACHE.get(uuid);
+        if (hasTextures(cached)) {
+            return copy(cached);
+        }
+
+        PlayerProfile live = liveProfile(uuid);
+        if (hasTextures(live)) {
+            remember(live);
+            return copy(live);
+        }
+
+        PlayerProfile fromCache = fromServerCache(uuid, name);
+        if (hasTextures(fromCache)) {
+            remember(fromCache);
+            return copy(fromCache);
+        }
+        return null;
+    }
+
+    private static PlayerProfile liveProfile(UUID uuid) {
         try {
             Player online = Bukkit.getPlayer(uuid);
             if (online != null && Bukkit.getServer().isOwnedByCurrentRegion(online)) {
@@ -55,15 +111,84 @@ public final class PlayerHeads {
             }
         } catch (RuntimeException ignored) {
         }
-        String profileName = (name == null || name.isBlank()) ? "Unknown" : name;
+        return null;
+    }
+
+    private static PlayerProfile fromServerCache(UUID uuid, String name) {
         try {
-            return Bukkit.createPlayerProfile(uuid, profileName);
-        } catch (RuntimeException ignored) {
+            String profileName = (name == null || name.isBlank()) ? "Unknown" : name;
+            com.destroystokyo.paper.profile.PlayerProfile paper;
             try {
-                return Bukkit.createPlayerProfile(uuid);
-            } catch (RuntimeException ignoredAgain) {
-                return null;
+                paper = Bukkit.createProfile(uuid, profileName);
+            } catch (RuntimeException ignored) {
+                paper = Bukkit.createProfile(uuid);
             }
+            if (paper.hasTextures()) {
+                return paper;
+            }
+            if (paper.completeFromCache() && paper.hasTextures()) {
+                return paper;
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return null;
+    }
+
+    private static boolean hasTextures(PlayerProfile profile) {
+        if (profile == null) {
+            return false;
+        }
+        try {
+            if (profile instanceof com.destroystokyo.paper.profile.PlayerProfile paper) {
+                return paper.hasTextures();
+            }
+            return !profile.getTextures().isEmpty();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private static UUID uuidOf(PlayerProfile profile) {
+        if (profile instanceof com.destroystokyo.paper.profile.PlayerProfile paper && paper.getId() != null) {
+            return paper.getId();
+        }
+        try {
+            return profile.getUniqueId();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String nameOf(PlayerProfile profile) {
+        try {
+            return profile.getName();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static void applyProfile(SkullMeta meta, PlayerProfile profile) {
+        if (meta == null || profile == null) {
+            return;
+        }
+        try {
+            if (profile instanceof com.destroystokyo.paper.profile.PlayerProfile paper) {
+                meta.setPlayerProfile(paper);
+            } else {
+                meta.setOwnerProfile(profile);
+            }
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private static PlayerProfile copy(PlayerProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        try {
+            return profile.clone();
+        } catch (RuntimeException ignored) {
+            return profile;
         }
     }
 }

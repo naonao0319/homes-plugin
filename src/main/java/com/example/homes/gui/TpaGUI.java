@@ -20,6 +20,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import com.example.homes.HomesPlugin;
 import com.example.homes.gui.holder.TpaGuiHolder;
+import com.example.homes.util.PlayerHeads;
 import com.example.homes.util.VanishUtil;
 
 import net.kyori.adventure.text.Component;
@@ -161,9 +162,7 @@ public class TpaGUI implements Listener {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = head.getItemMeta();
         if (meta instanceof SkullMeta sm) {
-            // Use the live PlayerProfile so Bedrock skins applied by
-            // GeyserSkinManager (when installed) are picked up automatically.
-            sm.setOwnerProfile(target.profile());
+            PlayerHeads.applySkin(sm, target.profile());
         }
         if (meta != null) {
             String nameTmpl = plugin.getConfig().getString("gui.tpa.head.name", "&e{player}");

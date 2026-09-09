@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import com.example.homes.HomesPlugin;
+import com.example.homes.util.PlayerHeads;
 import com.example.homes.util.VanishUtil;
 
 /**
@@ -60,9 +61,12 @@ public final class OnlinePlayerSnapshotCache implements Listener {
     private void track(Player player) {
         plugin.getFoliaScheduler().runEntityAtFixedRate(
                 player,
-                ignored -> snapshots.put(
-                        player.getUniqueId(),
-                        new Snapshot(player.getName(), VanishUtil.isVanished(player))),
+                ignored -> {
+                    snapshots.put(
+                            player.getUniqueId(),
+                            new Snapshot(player.getName(), VanishUtil.isVanished(player)));
+                    PlayerHeads.remember(player);
+                },
                 1L,
                 20L);
     }

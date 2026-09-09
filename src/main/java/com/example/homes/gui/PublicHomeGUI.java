@@ -26,7 +26,7 @@ import com.example.homes.util.PlayerHeads;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
-/** /vhome 引数なしで開く公開ホーム一覧。アイテムは持ち主の頭 (Skin API)。 */
+/** /vhome 引数なしで開く公開ホーム一覧。アイテムは持ち主の頭 (キャッシュ済みスキンのみ)。 */
 public class PublicHomeGUI implements Listener {
 
     private static final int GUI_SIZE = 54;

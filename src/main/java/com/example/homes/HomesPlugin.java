@@ -44,6 +44,7 @@ import com.example.homes.manager.TeleportManager;
 import com.example.homes.manager.TpaManager;
 import com.example.homes.manager.UpdateChecker;
 import com.example.homes.util.FoliaScheduler;
+import com.example.homes.util.PlayerHeads;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -285,6 +286,7 @@ public class HomesPlugin extends JavaPlugin {
         if (homeManager != null) {
             homeManager.close();
         }
+        PlayerHeads.clearCache();
         getLogger().info("HomesPlugin が無効になりました！");
     }
 
