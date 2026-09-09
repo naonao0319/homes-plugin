@@ -110,8 +110,8 @@ home-exists: "&cA home with that name already exists."
 update-available-header: "&8[&6&lHomes&r&8] &a&lAn update is available!"
 update-available-current: "&7Current version &f{current}"
 update-available-latest: "&7New version &e&l{latest}"
-update-available-link: "&b&n[View on Modrinth]"
-update-available-link-hover: "&7Open on Modrinth"
+update-available-link: "&b&n[View on GitHub]"
+update-available-link-hover: "&7Open on GitHub"
 
 # In-GUI text
 gui-create-count: "&eHomes created: {current} / {max}"

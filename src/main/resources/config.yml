@@ -59,7 +59,7 @@ settings:
     enabled: true
 
   update-check:
-    enabled: true       # Modrinthで最新版を確認し、OPに通知するか
+    enabled: true       # GitHub Releasesで最新版を確認し、OPに通知するか
 
 economy:
   enabled: false

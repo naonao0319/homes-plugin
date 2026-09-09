@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import com.example.homes.util.FoliaScheduler;
+
 class FoliaCompatibilityTest {
 
     @Test
@@ -21,5 +23,11 @@ class FoliaCompatibilityTest {
         } catch (java.io.IOException e) {
             throw new AssertionError("Failed to read plugin.yml", e);
         }
+    }
+
+    @Test
+    void foliaSchedulerClassIsOnTheClasspath() {
+        assertTrue(FoliaScheduler.class.getName().startsWith("com.example.homes.util"),
+                "region-aware scheduler wrapper must ship with the plugin");
     }
 }

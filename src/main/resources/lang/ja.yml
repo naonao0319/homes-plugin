@@ -103,8 +103,8 @@ home-exists: "&cその名前のホームは既に存在します。"
 update-available-header: "&8[&6&lHomes&r&8] &a&l更新があります！"
 update-available-current: "&7現在のバージョン &f{current}"
 update-available-latest: "&7新しいバージョン &e&l{latest}"
-update-available-link: "&b&n【Modrinthで表示】"
-update-available-link-hover: "&7Modrinthで開く"
+update-available-link: "&b&n【GitHubで表示】"
+update-available-link-hover: "&7GitHubで開く"
 
 # GUI 内テキスト
 gui-create-count: "&e現在の作成数: {current} / {max}"

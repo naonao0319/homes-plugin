@@ -10,31 +10,41 @@ import org.junit.jupiter.api.Test;
 class UpdateCheckerSemverTest {
 
     @Test
-    void parsesFirstVersionNumberFromArray() {
-        String json = "[{\"version_number\":\"1.16.0\",\"name\":\"a\"},"
-                + "{\"version_number\":\"1.15.0\",\"name\":\"b\"}]";
+    void parsesTagNameFromGitHubLatestRelease() {
+        String json = "{\"tag_name\":\"v1.16.0\",\"html_url\":\"https://github.com/paper0319/homes-plugin/releases/tag/v1.16.0\","
+                + "\"draft\":false,\"prerelease\":false}";
         assertEquals("1.16.0", UpdateChecker.parseLatestVersionNumber(json));
     }
 
     @Test
+    void parseStripsLeadingVFromTag() {
+        assertEquals("2.0.7", UpdateChecker.stripTagPrefix("v2.0.7"));
+        assertEquals("2.0.7", UpdateChecker.stripTagPrefix("V2.0.7"));
+        assertEquals("2.0.7", UpdateChecker.stripTagPrefix("2.0.7"));
+    }
+
+    @Test
     void parseToleratesWhitespaceAndExtraFields() {
-        String json = "[ { \"id\": \"x\", \"version_number\" : \"2.0.1\" } ]";
+        String json = "{ \"id\": 1, \"tag_name\" : \"v2.0.1\", \"draft\": false }";
         assertEquals("2.0.1", UpdateChecker.parseLatestVersionNumber(json));
     }
 
     @Test
-    void parseReturnsNullForEmptyArray() {
-        assertNull(UpdateChecker.parseLatestVersionNumber("[]"));
+    void parseReturnsNullForDraftOrPrerelease() {
+        assertNull(UpdateChecker.parseLatestVersionNumber(
+                "{\"tag_name\":\"v2.0.8\",\"draft\":true,\"prerelease\":false}"));
+        assertNull(UpdateChecker.parseLatestVersionNumber(
+                "{\"tag_name\":\"v2.0.8\",\"draft\":false,\"prerelease\":true}"));
     }
 
     @Test
-    void parseReturnsNullWhenVersionNumberMissing() {
-        assertNull(UpdateChecker.parseLatestVersionNumber("[{\"name\":\"no-version\"}]"));
+    void parseReturnsNullWhenTagNameMissing() {
+        assertNull(UpdateChecker.parseLatestVersionNumber("{\"name\":\"no-tag\"}"));
     }
 
     @Test
-    void parseReturnsNullForNonArrayJson() {
-        assertNull(UpdateChecker.parseLatestVersionNumber("{\"version_number\":\"1.0.0\"}"));
+    void parseReturnsNullForArrayJson() {
+        assertNull(UpdateChecker.parseLatestVersionNumber("[{\"tag_name\":\"v1.0.0\"}]"));
     }
 
     @Test

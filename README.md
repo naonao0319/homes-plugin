@@ -31,6 +31,8 @@ This plugin allows players to set multiple homes, manage them via a GUI, share t
     *   Integration with Vault to charge for setting homes, teleporting, etc.
 *   **Permission Bypass**:
     *   OPs (or any group via LuckPerms) can bypass the teleport warmup and economy costs.
+*   **Folia support**:
+    *   `folia-supported: true`. Teleports, GUIs, TPA, and database work use Paper's entity/region/global/async schedulers (no Bukkit scheduler).
 *   **Fully Configurable**:
     *   All messages and settings can be customized in `config.yml`.
 
@@ -95,14 +97,14 @@ settings:
   back:
     enabled: true        # Enable /back command
   update-check:
-    enabled: true        # Notify OPs when a Modrinth update is available
+    enabled: true        # Notify OPs when a GitHub Release update is available
 ```
 
 Per-player home limits are controlled by permissions (e.g. via LuckPerms): grant `homes.limit.<number>` or `homes.limit.unlimited`. Without one, the player uses `default-home-limit`.
 
 ### 📥 Installation
 
-1.  Download the `HomesPlugin.jar`.
+1.  Download the jar from [GitHub Releases](https://github.com/paper0319/homes-plugin/releases).
 2.  Place it in your server's `plugins` folder.
 3.  (Optional) Install Vault and an Economy plugin (like EssentialsX) for economy features.
 4.  Restart your server.
@@ -141,6 +143,8 @@ Developed by **naonao**.
     *   Vaultプラグインと連携し、ホーム設定やテレポートにコストを設定可能。
 *   **権限による Bypass**:
     *   OP（または LuckPerms で任意のグループ）は、テレポート待機時間と利用料金をスキップできます。
+*   **Folia 対応**:
+    *   `folia-supported: true`。テレポート・GUI・TPA・DB は Paper の Entity/Region/Global/Async スケジューラを使います。
 *   **完全な日本語対応**:
     *   メッセージは `config.yml` ですべてカスタマイズ可能。
 
@@ -203,12 +207,12 @@ settings:
   back:
     enabled: true        # Back機能を有効にするか
   update-check:
-    enabled: true        # Modrinthの更新をOPに通知するか
+    enabled: true        # GitHub Releasesの更新をOPに通知するか
 ```
 
 ### 📥 インストール
 
-1.  `HomesPlugin.jar` をサーバーの `plugins` フォルダに配置します。
+1.  [GitHub Releases](https://github.com/paper0319/homes-plugin/releases) から jar をダウンロードし、サーバーの `plugins` フォルダに配置します。
 2.  サーバーを再起動します。
 3.  必要に応じて `plugins/HomesPlugin/config.yml` を編集してください。
 
